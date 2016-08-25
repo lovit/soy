@@ -1,1 +1,1 @@
-# SOY: Korean Natural Language Processing and Machine Learning Toolkits
+# Soy: Korean Natural Language Processing and Machine Learning Toolkits
