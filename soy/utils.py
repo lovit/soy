@@ -118,6 +118,14 @@ class Corpus:
             for doc_id, doc in enumerate(f):
                 if doc_id >= self.num_doc:
                     break
+                yield doc.strip()
+
+                
+    def iter_sents(self):
+        with open(self.corpus_fname, encoding='utf-8') as f:
+            for doc_id, doc in enumerate(f):
+                if doc_id >= self.num_doc:
+                    break
                 for sent in doc.split('  '):
                     sent = sent.strip()
                     if not sent:
