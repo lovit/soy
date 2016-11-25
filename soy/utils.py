@@ -28,6 +28,18 @@ class IntegerEncoder:
         
         return fixer
     
+    
+    def __getitem__(self, x):
+        if type(x) == int:
+            if x < self.num_object:
+                return self.inverse[x]
+            else:
+                return None
+        if x in self.mapper:
+            return self.mapper[x]
+        else:
+            return -1    
+        
         
     def decode(self, i, unknown = None):
         if i >= 0 and i < self.num_object:
