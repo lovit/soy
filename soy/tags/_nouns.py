@@ -41,3 +41,18 @@ class LRNounExtractor:
         
         return (score / norm, norm / (norm + unknown))
 
+        
+    def extract_and_transform(self, docs, min_count = 10):
+        
+        self.extract(docs)
+        self.transform(docs, min_count)
+    
+    
+    def extract(self, docs):
+        
+        raise NotImplementedError('LRNounExtractor should implement')
+
+        
+    def transform(self, docs, min_count = 10):
+        
+        raise NotImplementedError('LRNounExtractor should implement')
