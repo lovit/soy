@@ -40,7 +40,7 @@ def normalize(doc, english=False, number=False, punctuation=False, remove_repeat
         if c == ' ':
             f += ' '
         
-        elif (_kor_begin <= i <= kor_end) or (_kor_jaum_begin <= i <= _kor_jaum_end) or (_kor_moum_begin <= i <= _kor_moum_end):
+        elif (_kor_begin <= i <= _kor_end) or (_kor_jaum_begin <= i <= _kor_jaum_end) or (_kor_moum_begin <= i <= _kor_moum_end):
             f += c
         
         elif (english) and ( (i >= 97 and i <= 122) or (i >= 65 and i <= 90) ):
