@@ -2,6 +2,10 @@ _kor_begin     = 44032
 _kor_end       = 55199
 _chosung_base  = 588
 _jungsung_base = 28
+_kor_jaum_begin = 12593
+_kor_jaum_end = 12622
+_kor_moum_begin = 12623
+_kor_moum_end = 12643
 
 _chosung_list = [ 'ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 
         'ㅅ', 'ㅆ', 'ㅇ' , 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ']
@@ -17,8 +21,7 @@ _jongsung_list = [
         'ㅁ', 'ㅂ', 'ㅄ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅊ', 
         'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ']
 
-
-def normalize(doc, english=False, number=False, punctuation=False, remains={}):
+def normalize(doc, english=False, number=False, remains={}):
     
     f = ''
     
@@ -29,9 +32,9 @@ def normalize(doc, english=False, number=False, punctuation=False, remains={}):
         if c == ' ':
             f += ' '
         
-        elif (i >= _kor_begin) and (i <= _kor_end):
+        elif (_kor_begin <= i <= kor_end) or (_kor_jaum_begin <= i <= _kor_jaum_end) or (_kor_moum_begin <= i <= _kor_moum_end):
             f += c
-            
+        
         elif (english) and ( (i >= 97 and i <= 122) or (i >= 65 and i <= 90) ):
             f += c
             
