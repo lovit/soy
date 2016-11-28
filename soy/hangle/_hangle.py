@@ -1,3 +1,5 @@
+import re
+
 _kor_begin     = 44032
 _kor_end       = 55199
 _chosung_base  = 588
@@ -21,8 +23,14 @@ _jongsung_list = [
         'ㅁ', 'ㅂ', 'ㅄ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅊ', 
         'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ']
 
-def normalize(doc, english=False, number=False, remains={}):
+_doublespace_pattern = re.compile('\s+')
+_repeatchars_pattern = re.compile('(\w)\\1{3,}')
+
+def normalize(doc, english=False, number=False, remove_repeat = 0, remains={}):
     
+    if remove_repeat > 0:
+        doc = _repeatchars_pattern.sub('\\1' * remove_repeat, doc)
+
     f = ''
     
     for c in doc:
@@ -46,8 +54,11 @@ def normalize(doc, english=False, number=False, remains={}):
             
         elif c in remains:
             f += c
+        
+        else:
+            f += ' '
             
-    return f
+    return _doublespace_pattern.sub(' ', f)
 
 
 def split_jamo(c):
