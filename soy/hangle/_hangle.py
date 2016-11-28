@@ -58,7 +58,7 @@ def normalize(doc, english=False, number=False, punctuation=False, remove_repeat
         else:
             f += ' '
             
-    return _doublespace_pattern.sub(' ', f)
+    return _doublespace_pattern.sub(' ', f).strip()
 
 
 def split_jamo(c):
