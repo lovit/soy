@@ -39,7 +39,8 @@ class LRNounExtractor:
             else:
                 unknown += freq
         
-        return (score / norm, norm / (norm + unknown))
+        return (0 if norm == 0 else score / norm, 
+                0 if (norm + unknown == 0) else norm / (norm + unknown))
 
         
     def extract_and_transform(self, docs, min_count = 10):
