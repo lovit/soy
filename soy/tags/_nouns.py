@@ -56,3 +56,8 @@ class LRNounExtractor:
     def transform(self, docs, min_count = 10):
         
         raise NotImplementedError('LRNounExtractor should implement')
+
+        
+    def _postprocessing(self, noun_candidates, lr_graph):
+        
+        raise NotImplementedError('LRNounExtractor should implement')
