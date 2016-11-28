@@ -1,1 +1,1 @@
-from .nouns import LRNounExtractor
+from ._nouns import LRNounExtractor
