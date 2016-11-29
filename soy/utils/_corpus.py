@@ -13,6 +13,9 @@ class DoublespaceLineCorpus:
         
             for doc_id, doc in enumerate(f):
 
+                if is_part:
+                    break
+
                 if (num_doc > 0) and (doc_id + 1 == num_doc):
                     is_part = True
                     break
@@ -26,8 +29,8 @@ class DoublespaceLineCorpus:
                         is_part = True
                         break
                 
-            self.num_doc = doc_id + 1
-            self.num_sent = num_sent_tmp
+            self.num_doc = doc_id + 1 if num_doc < 0 else min(num_doc, (doc_id + 1))
+            self.num_sent = num_sent_tmp if num_sent < 0 else min(num_sent_tmp, num_sent)
         
         print('DoublespaceLineCorpus %s has %d docs, %d sents' % ('(partial)' if is_part else '', self.num_doc, self.num_sent))
                 
@@ -36,9 +39,15 @@ class DoublespaceLineCorpus:
         
         with open(self.corpus_fname, encoding='utf-8') as f:
             
-            for doc_id, doc in enumerate(f):
+            num_sent = 0
+            stop_iter = False
+ 
+            for _num_doc, doc in enumerate(f):
                 
-                if doc_id >= self.num_doc:
+                if stop_iter:
+                    break
+
+                if _num_doc >= self.num_doc:
                     break
                     
                 if not self.iter_sent:
@@ -46,6 +55,11 @@ class DoublespaceLineCorpus:
                     
                 else:
                     for sent in doc.split('  '):
+
+                        num_sent += 1
+                        if num_sent > self.num_sent:
+                            stop_iter = True
+                            break
                         sent = sent.strip()
                         if not sent:
                             continue
