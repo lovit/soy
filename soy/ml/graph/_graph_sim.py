@@ -21,7 +21,7 @@ class RandomWalkWithRestart:
                 return False
         return True
 
-    def get_similarity(self, node, max_steps = 6, df = 0.85):
+    def get_similarity(self, node, max_steps = 6, df = 0.85, bipartite=False):
         '''
         Parameters
         ----------
@@ -46,9 +46,10 @@ class RandomWalkWithRestart:
                     next_walkers[outb] += weight * outbw
             
             if df > 0:
-                for walker, weight in next_walkers.items():
-                    next_walkers[walker] *= df
-                next_walkers[node] += (1 - df)
+                if (not bipartite) or (num_step % 2 == 1):
+                    for walker, weight in next_walkers.items():
+                        next_walkers[walker] *= df
+                    next_walkers[node] += (1 - df)
             
             sim = next_walkers
             num_step += 1
