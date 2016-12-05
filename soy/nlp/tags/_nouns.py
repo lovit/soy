@@ -47,16 +47,120 @@ class LRNounExtractor:
         return (0 if norm == 0 else score / norm, 
                 0 if (norm + unknown == 0) else norm / (norm + unknown))
 
+    def build_lrgraph(self, docs, max_l_length=10, max_r_length=6, min_count=10):    
+        """
+        Parameters
+        ----------
+            docs: iterable object which has string
+            
+            max_l_length: int
+            
+            max_r_length: int
+            
+            min_count: int
+            
+        It computes subtoken frequency first. 
+        After then, it builds lr-graph with sub-tokens appeared at least min count
+        """
+        
+        _ckpt = int(len(docs) / 40)
+        
+        counter_l = defaultdict(lambda: 0)
+        counter_r = defaultdict(lambda: 0)
+        
+        for num_doc, doc in enumerate(docs):
+            for sent in doc.split('  '):
+                for token in sent.split():
+
+                    if not token:
+                        continue
+
+                    token_len = len(token)
+
+                    for i in range(1, min(max_l_length, token_len)+1):
+                        counter_l[token[:i]] += 1
+
+                    for i in range(1, min(max_r_length, token_len)):
+                        counter_r[token[-i:]] += 1
+            
+            if num_doc % _ckpt == 0:
+                sys.stdout.write('\rscanning: %s%s (%.3f %s)' % 
+                                 ('#' * int(num_doc/_ckpt),
+                                  '-' * (40 - int(num_doc/_ckpt)), 
+                                  100.0 * num_doc / len(docs), '%') )
+        print('\rscanning completed')
+        
+        def filter_extreme(d, min_count):
+            return {k:v for k,v in d.items() if v > min_count}
+        
+        counter_l = filter_extreme(counter_l, min_count)
+        counter_r = filter_extreme(counter_r, min_count)
+        counter_r[''] = 0
+        print('(L,R) has (%d, %d) tokens' % (len(counter_l), len(counter_r)))
+        
+        lr_graph = dict_graph()
+        encoder = IntegerEncoder()
+        encoder.fit('')
+        
+        for num_doc, doc in enumerate(docs):
+            for sent in doc.split('  '):
+                for token in sent.split():    
+
+                    if not token:
+                        continue
+
+                    token_len = len(token)
+
+                    for i in range(1, min(max_l_length, token_len)+1):
+
+                        l = token[:i]
+                        r = token[i:]
+
+                        if (not l in counter_l) or (not r in counter_r):
+                            continue
+
+                        l = encoder.fit(l)
+                        r = encoder.fit(r)
+                        lr_graph.add(l, r, 1)
+
+            if num_doc % _ckpt == 0:
+                sys.stdout.write('\rbuilding lr-graph: %s%s (%.3f %s)' % 
+                                 ('#' * int(num_doc/_ckpt),
+                                  '-' * (40 - int(num_doc/_ckpt)), 
+                                  100.0 * num_doc / len(docs), '%') )
+        sys.stdout.write('\rbuilding lr-graph completed')
+        
+        del counter_l
+        del counter_r
+                        
+        return lr_graph, encoder
+
+
+    def extract(self, docs, nounscore_threshold=0.0, known_threshold=0.05):
+        """
+        Parameters
+        ----------
+            docs: list of str
+            
+        Returns
+        -------
+            noun list
+        """
+        
+        lr_graph, encoder = self.build_lrgraph(docs)
+        
+        # Prediction
+        
+        
+        # Post processing
+        
+        raise NotImplemented
+
         
     def extract_and_transform(self, docs, min_count = 10):
         
         self.extract(docs)
         self.transform(docs, min_count)
-    
-    
-    def extract(self, docs):
-        
-        raise NotImplementedError('LRNounExtractor should implement')
 
         
     def transform(self, docs, min_count = 10):
