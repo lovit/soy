@@ -1,6 +1,11 @@
+import os
+
 class LRNounExtractor:
     
-    def __init__(self, r_score_file):
+    def __init__(self, r_score_file=None):
+        if (r_score_file == None) or (not os.path.exists(r_score_file)):
+            print('Use default r_score_file')
+            r_score_file = __file__[:-9] + 'noun_score_sejong'
         self._load_r_score(r_score_file)
         
         
