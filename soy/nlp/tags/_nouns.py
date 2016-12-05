@@ -136,27 +136,76 @@ class LRNounExtractor:
         return lr_graph, encoder
 
 
-    def extract(self, docs, nounscore_threshold=0.0, known_threshold=0.05):
+    def extract(self, docs, nounscore_threshold=0.0, known_threshold=0.05, word_extraction='cohesion', kargs):
         """
         Parameters
         ----------
             docs: list of str
-            
+
+            nounscore_threshold: float
+
+            known_threshold: float
+
+            word_extraction: str
+                possible value = ['cohesion', 'branch']
+
         Returns
         -------
             noun list
         """
-        
-        lr_graph, encoder = self.build_lrgraph(docs)
-        
-        # Prediction
-        
-        
-        # Post processing
-        
-        raise NotImplemented
 
-        
+        lr_graph, encoder = self.build_lrgraph(docs)
+
+        class sents:        
+            def __init__(self, docs):
+                self.docs = docs
+                self.num_sent = 0
+                for doc in docs:
+                    for sent in doc.split('  '):
+                        self.num_sent += 1
+            def __iter__(self):
+                for doc in docs:
+                    for sent in doc.split('  '):
+                        yield sent
+            def __len__(self):
+                return self.num_sent
+
+        if word_extraction == 'cohesion':
+
+            cp_min_count = kargs.get('cp_min_count', 30)
+            cohesion = CohesionProbability()
+            cohesion.train(corpus)
+            cohesion.prune_extreme_case(cp_min_count)
+
+            min_cohesion_probability = kargs.get('cp_min_prob', 0.1)
+            noun_candidates = cohesion.get_all_cohesion_probabilities()
+            noun_candidates = [k for k,v in noun_candidates.items() if v[0] > min_cohesion_probability]
+
+        # Prediction
+        if not noun_candidates:
+            noun_candidates = encoder.keys()
+
+        nouns = dict()
+
+        for word, word_score in noun_candidates:
+            if not word in encoder.mapper:
+                continue
+
+            r_features = lr_graph.outb(encoder.encode(word))
+            r_features = {encoder.decode(r, unknown='Unk'):f for r,f in r_features.items()}
+            if 'Unk' in r_features: del r_features['Unk']
+
+            noun_score = self.predict(r_features)
+
+            if noun_score[0] > noun_threshold:
+                nouns[word] = noun_score
+
+        # Post processing
+        # Not yet: TODO
+
+        raise NotImplemented        
+       
+ 
     def extract_and_transform(self, docs, min_count = 10):
         
         self.extract(docs)
