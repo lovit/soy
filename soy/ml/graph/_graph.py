@@ -50,22 +50,23 @@ class graph:
         '''
         raise NotImplemented
         
-    def load(self, fname, delimiter=','):
+    def load(self, fname, delimiter=',', skip_head = 1):
         if not os.path.exists(fname):
             raise FileNotFoundError('graph file was not found: %s' % fname)
         else:
             with open(fname, encoding='utf-8') as f:
-                # skip header E = %d, N = %d
-                next(f)
                 try:
                     for num_line, line in enumerate(f):
+                        # skip header E = %d, N = %d
+                        if num_line < skip_head:
+                            continue    
                         u, v, w = line.replace('\n', '').split(delimiter)
                         u = int(u)
                         v = int(v)
                         w = float(w)
                         self.add(u, v, w)
                 except:
-                    raise ValueError('parsing error (line %d) %s' % (num_line + 1, line) )
+                    raise ValueError('parsing error (line %d) %s' % (num_line, line) )
     
     def save(self, fname, delimiter=','):
         raise NotImplemented
