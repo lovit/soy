@@ -41,7 +41,7 @@ def normalize(doc, english=False, number=False, punctuation=False, remove_repeat
     for c in doc:
         i = ord(c)
         
-        if (c == ' ') or (english and is_english(i)) or (number and is_number(i)) or (punctuation and is_punctuation(i)):
+        if (c == ' ') or (is_korean(i)) or (english and is_english(i)) or (number and is_number(i)) or (punctuation and is_punctuation(i)):
             f += c            
         elif c in remains:
             f += c        
