@@ -11,7 +11,7 @@ from soy.utils._utils import IntegerEncoder
 
 class CohesionProbability:
     
-    def __init__(self, left_min_length=2, left_max_length=10, right_min_length=1, right_max_length=6):
+    def __init__(self, left_min_length=1, left_max_length=10, right_min_length=1, right_max_length=6):
         
         self.left_min_length = left_min_length
         self.left_max_length = left_max_length
@@ -105,7 +105,44 @@ class CohesionProbability:
                 
         if (num_for_pruning > 0) and ( (num_sent + 1) % num_for_pruning == 0):
                 self.prune_extreme_case(min_count)
+
                 
+    def extract(self, min_count=5, min_cohesion=(0.2, 0), min_droprate=0.8):
+        
+        word_to_score = self.get_all_cohesion_probabilities()
+        words = []
+        
+        for word, score in word_to_score.items():
+            
+            if (score[0] < min_cohesion[0]) or (score[1] < min_cohesion[1]):
+                continue
+            if (score[2] < min_count):
+                continue
+                
+            words.append(word)
+        
+        by_length = defaultdict(lambda: [])
+        for word in words:
+            by_length[len(word)].append(word)
+        
+        l_words = {}
+        
+        # Extracting L words       
+        for length, word_list in sorted(by_length.items(), key=lambda x:x[0], reverse=False):
+            if length == 1:
+                continue
+            
+            for word in word_list:
+                if not word[:-1] in l_words:
+                    l_words[word] = word_to_score[word]
+                    continue
+                else:
+                    if ( (word_to_score[word][2] / word_to_score[word[:-1]][2]) >= min_droprate ):
+                        del l_words[word[:-1]]
+                        l_words[word] = word_to_score[word]
+                
+        return l_words
+
                     
     def load(self, fname):
         try:
