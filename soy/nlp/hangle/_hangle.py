@@ -23,6 +23,13 @@ _jongsung_list = [
         'ㅁ', 'ㅂ', 'ㅄ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅊ', 
         'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ']
 
+_jaum_list = ['ㄱ', 'ㄲ', 'ㄳ', 'ㄴ', 'ㄵ', 'ㄶ', 'ㄷ', 'ㄸ', 'ㄹ', 
+              'ㄺ', 'ㄻ', 'ㄼ', 'ㄽ', 'ㄾ', 'ㄿ', 'ㅀ', 'ㅁ', 'ㅂ', 
+              'ㅃ', 'ㅄ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ']
+
+_moum_list = ['ㅏ', 'ㅐ', 'ㅑ', 'ㅒ', 'ㅓ', 'ㅔ', 'ㅕ', 'ㅖ', 'ㅗ', 'ㅘ', 
+              'ㅙ', 'ㅚ', 'ㅛ', 'ㅜ', 'ㅝ', 'ㅞ', 'ㅟ', 'ㅠ', 'ㅡ', 'ㅢ', 'ㅣ']
+
 _doublespace_pattern = re.compile('\s+')
 _repeatchars_pattern = re.compile('(\w)\\1{3,}')
 
@@ -65,8 +72,14 @@ def split_jamo(c):
     
     base = ord(c)
     
-    if base < _kor_begin or base > _kor_end:
+    if not ( (_kor_begin <= base <= _kor_end) or (_kor_jaum_begin <= base <= _kor_jaum_end) or (_kor_moum_begin <= base <= _kor_moum_end) ):
         return None
+
+    if (_jaum_begin <= base <= _jaum_end):
+        return [c, ' ', ' ']
+
+    if (_moum_begin <= base <= moum_end):
+        return [' ', c, ' ']
     
     base -= _kor_begin
     
