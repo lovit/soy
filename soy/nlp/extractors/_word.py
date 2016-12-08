@@ -11,7 +11,7 @@ from soy.utils._utils import IntegerEncoder
 
 class CohesionProbability:
     
-    def __init__(self, left_min_length=2, left_max_length=7, right_min_length=1, right_max_length=6):
+    def __init__(self, left_min_length=2, left_max_length=10, right_min_length=1, right_max_length=6):
         
         self.left_min_length = left_min_length
         self.left_max_length = left_max_length
