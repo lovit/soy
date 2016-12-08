@@ -107,7 +107,7 @@ class CohesionProbability:
                 self.prune_extreme_case(min_count)
 
                 
-    def extract(self, min_count=5, min_cohesion=(0.3, 0), min_droprate=0.4):
+    def extract(self, min_count=5, min_cohesion=(0.3, 0), min_droprate=0.4, remove_subword=True):
         
         word_to_score = self.get_all_cohesion_probabilities()
         words = []
@@ -133,14 +133,19 @@ class CohesionProbability:
                 continue
             
             for word in word_list:
-                if not word[:-1] in l_words:
-                    l_words[word] = word_to_score[word]
-                    continue
-                else:
-                    if ( (word_to_score[word][2] / word_to_score[word[:-1]][2]) >= min_droprate ):
-                        del l_words[word[:-1]]
-                        l_words[word] = word_to_score[word]
+                score = word_to_score[word]
+                subscore = word_to_score[word[:-1]]
+                droprate = score[2] / subscore[2] if subscore[2] > 0 else 1.0 
+                if (droprate == 1.0) and (word[:-1] in l_words):
+                    del l_words[word[:-1]]
                 
+                if length > 2 and droprate < min_droprate:
+                    continue
+ 
+                l_words[word] = word_to_score[word]
+                if (remove_subword) and (word[:-1] in l_words):
+                    del l_words[word[:-1]]
+        
         return l_words
 
                     
