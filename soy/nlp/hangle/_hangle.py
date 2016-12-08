@@ -1,94 +1,104 @@
 import re
 
-_kor_begin     = 44032
-_kor_end       = 55199
-_chosung_base  = 588
-_jungsung_base = 28
-_kor_jaum_begin = 12593
-_kor_jaum_end = 12622
-_kor_moum_begin = 12623
-_kor_moum_end = 12643
+kor_begin     = 44032
+kor_end       = 55199
+chosung_base  = 588
+jungsung_base = 28
+jaum_begin = 12593
+jaum_end = 12622
+moum_begin = 12623
+moum_end = 12643
 
-_chosung_list = [ 'ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 
+chosung_list = [ 'ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 
         'ㅅ', 'ㅆ', 'ㅇ' , 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ']
 
-_jungsung_list = ['ㅏ', 'ㅐ', 'ㅑ', 'ㅒ', 'ㅓ', 'ㅔ', 
+jungsung_list = ['ㅏ', 'ㅐ', 'ㅑ', 'ㅒ', 'ㅓ', 'ㅔ', 
         'ㅕ', 'ㅖ', 'ㅗ', 'ㅘ', 'ㅙ', 'ㅚ', 
         'ㅛ', 'ㅜ', 'ㅝ', 'ㅞ', 'ㅟ', 'ㅠ', 
         'ㅡ', 'ㅢ', 'ㅣ']
 
-_jongsung_list = [
+jongsung_list = [
     ' ', 'ㄱ', 'ㄲ', 'ㄳ', 'ㄴ', 'ㄵ', 'ㄶ', 'ㄷ',
         'ㄹ', 'ㄺ', 'ㄻ', 'ㄼ', 'ㄽ', 'ㄾ', 'ㄿ', 'ㅀ', 
         'ㅁ', 'ㅂ', 'ㅄ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅊ', 
         'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ']
 
-_jaum_list = ['ㄱ', 'ㄲ', 'ㄳ', 'ㄴ', 'ㄵ', 'ㄶ', 'ㄷ', 'ㄸ', 'ㄹ', 
+jaum_list = ['ㄱ', 'ㄲ', 'ㄳ', 'ㄴ', 'ㄵ', 'ㄶ', 'ㄷ', 'ㄸ', 'ㄹ', 
               'ㄺ', 'ㄻ', 'ㄼ', 'ㄽ', 'ㄾ', 'ㄿ', 'ㅀ', 'ㅁ', 'ㅂ', 
               'ㅃ', 'ㅄ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ']
 
-_moum_list = ['ㅏ', 'ㅐ', 'ㅑ', 'ㅒ', 'ㅓ', 'ㅔ', 'ㅕ', 'ㅖ', 'ㅗ', 'ㅘ', 
+moum_list = ['ㅏ', 'ㅐ', 'ㅑ', 'ㅒ', 'ㅓ', 'ㅔ', 'ㅕ', 'ㅖ', 'ㅗ', 'ㅘ', 
               'ㅙ', 'ㅚ', 'ㅛ', 'ㅜ', 'ㅝ', 'ㅞ', 'ㅟ', 'ㅠ', 'ㅡ', 'ㅢ', 'ㅣ']
 
-_doublespace_pattern = re.compile('\s+')
-_repeatchars_pattern = re.compile('(\w)\\1{3,}')
+doublespace_pattern = re.compile('\s+')
+repeatchars_pattern = re.compile('(\w)\\1{3,}')
 
 def normalize(doc, english=False, number=False, punctuation=False, remove_repeat = 0, remains={}):
-    
     if remove_repeat > 0:
-        doc = _repeatchars_pattern.sub('\\1' * remove_repeat, doc)
+        doc = repeatchars_pattern.sub('\\1' * remove_repeat, doc)
 
-    f = ''
-    
+    f = ''    
     for c in doc:
-
         i = ord(c)
         
-        if c == ' ':
-            f += ' '
-        
-        elif (_kor_begin <= i <= _kor_end) or (_kor_jaum_begin <= i <= _kor_jaum_end) or (_kor_moum_begin <= i <= _kor_moum_end):
-            f += c
-        
-        elif (english) and ( (i >= 97 and i <= 122) or (i >= 65 and i <= 90) ):
-            f += c
-            
-        elif (number) and (i >= 48 and i <= 57):
-            f += c
-        
-        elif (punctuation) and (i == 33 or i == 34 or i == 39 or i == 44 or i == 46 or i == 63 or i == 96):
-            f += c
-            
+        if (c == ' ') or (english and is_english(i)) or (number and is_number(i)) or (punctuation and is_punctuation(i)):
+            f += c            
         elif c in remains:
-            f += c
-        
+            f += c        
         else:
             f += ' '
             
-    return _doublespace_pattern.sub(' ', f).strip()
+    return doublespace_pattern.sub(' ', f).strip()
 
-
-def split_jamo(c):
+def split_jamo(c):    
+    i = ord(c)
     
-    base = ord(c)
-    
-    if not ( (_kor_begin <= base <= _kor_end) or (_kor_jaum_begin <= base <= _kor_jaum_end) or (_kor_moum_begin <= base <= _kor_moum_end) ):
+    if not is_korean(i):
         return None
-
-    if (_jaum_begin <= base <= _jaum_end):
+    elif is_jaum(i):
         return [c, ' ', ' ']
-
-    if (_moum_begin <= base <= moum_end):
+    elif is_moum(i):
         return [' ', c, ' ']
     
-    base -= _kor_begin
+    i -= kor_begin
     
-    cho  = base // _chosung_base
-    jung = ( base - cho * _chosung_base ) // _jungsung_base 
-    jong = ( base - cho * _chosung_base - jung * _jungsung_base )
+    cho  = i // chosung_base
+    jung = ( i - cho * chosung_base ) // jungsung_base 
+    jong = ( i - cho * chosung_base - jung * jungsung_base )
     
-    return [_chosung_list[cho], _jungsung_list[jung], _jongsung_list[jong]]
+    return [chosung_list[cho], jungsung_list[jung], jongsung_list[jong]]
 
+def is_korean(i):
+    i = to_base(i)
+    return (kor_begin <= i <= kor_end) or (jaum_begin <= i <= jaum_end) or (moum_begin <= i <= moum_end)
+
+def is_number(i):
+    i = to_base(i)
+    return (i >= 48 and i <= 57)
+
+def is_english(i):
+    i = to_base(i)
+    return (i >= 97 and i <= 122) or (i >= 65 and i <= 90)
+
+def is_punctuation(i):
+    i = to_base(i)
+    return (i == 33 or i == 34 or i == 39 or i == 44 or i == 46 or i == 63 or i == 96)
+
+def is_jaum(i):
+    i = to_base(i)
+    return (jaum_begin <= i <= jaum_end)
+
+def is_moum(i):
+    i = to_base(i)
+    return (moum_begin <= i <= moum_end)
+
+def to_base(c):
+    if type(c) == str:
+        return ord(c)
+    elif type(c) == int:
+        return c
+    else:
+        raise TypeError
 
 def combine_jamo(chosung, jungsung, jongsung):
-    return chr(_kor_begin + _chosung_base * _chosung_list.index(chosung) + _jungsung_base * _jungsung_list.index(jungsung) + _jongsung_list.index(jongsung))
+    return chr(kor_begin + chosung_base * chosung_list.index(chosung) + jungsung_base * jungsung_list.index(jungsung) + jongsung_list.index(jongsung))
