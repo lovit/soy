@@ -136,7 +136,7 @@ class LRNounExtractor:
         return lr_graph, encoder
 
 
-    def extract(self, docs, nounscore_threshold=0.0, known_threshold=0.05, word_extraction='cohesion', kargs):
+    def extract(self, docs, nounscore_threshold=0.0, known_threshold=0.05, word_extraction='cohesion', kargs={}):
         """
         Parameters
         ----------
