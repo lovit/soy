@@ -1,4 +1,11 @@
+from collections import defaultdict
 import os
+import sys
+
+from soy.ml.graph import dict_graph
+from soy.nlp.extractors import CohesionProbability
+from soy.utils import IntegerEncoder
+
 
 class LRNounExtractor:
     
@@ -136,7 +143,7 @@ class LRNounExtractor:
         return lr_graph, encoder
 
 
-    def extract(self, docs, nounscore_threshold=0.0, known_threshold=0.05, word_extraction='cohesion', kargs={}):
+    def extract(self, docs, noun_threshold=0.0, known_threshold=0.05, word_extraction='cohesion', kargs={}):
         """
         Parameters
         ----------
@@ -173,21 +180,22 @@ class LRNounExtractor:
         if word_extraction == 'cohesion':
 
             cp_min_count = kargs.get('cp_min_count', 30)
-            cohesion = CohesionProbability()
-            cohesion.train(corpus)
+            cohesion = CohesionProbability(kargs.get('cp_min_l',2), kargs.get('cp_max_l',10), kargs.get('cp_min_r',1), kargs.get('cp_max_r',6))
+            cohesion.train(docs)
             cohesion.prune_extreme_case(cp_min_count)
 
             min_cohesion_probability = kargs.get('cp_min_prob', 0.1)
             noun_candidates = cohesion.get_all_cohesion_probabilities()
-            noun_candidates = [k for k,v in noun_candidates.items() if v[0] > min_cohesion_probability]
+            noun_candidates = {k:v for k,v in noun_candidates.items() if v[0] > min_cohesion_probability}
 
         # Prediction
         if not noun_candidates:
-            noun_candidates = encoder.keys()
+            noun_candidates = {}
+            print('cannot find word candidates')
 
         nouns = dict()
 
-        for word, word_score in noun_candidates:
+        for word, word_score in noun_candidates.items():
             if not word in encoder.mapper:
                 continue
 
@@ -195,6 +203,8 @@ class LRNounExtractor:
             r_features = {encoder.decode(r, unknown='Unk'):f for r,f in r_features.items()}
             if 'Unk' in r_features: del r_features['Unk']
 
+            if not r_features:
+                nouns[word] = (0,0)
             noun_score = self.predict(r_features)
 
             if noun_score[0] > noun_threshold:
@@ -203,8 +213,9 @@ class LRNounExtractor:
         # Post processing
         # Not yet: TODO
 
-        raise NotImplemented        
-       
+        self.nouns = nouns
+
+        return nouns, noun_candidates  
  
     def extract_and_transform(self, docs, min_count = 10):
         

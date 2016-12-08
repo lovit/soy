@@ -107,7 +107,7 @@ class CohesionProbability:
                 self.prune_extreme_case(min_count)
 
                 
-    def extract(self, min_count=5, min_cohesion=(0.2, 0), min_droprate=0.8):
+    def extract(self, min_count=5, min_cohesion=(0.3, 0), min_droprate=0.4):
         
         word_to_score = self.get_all_cohesion_probabilities()
         words = []
@@ -144,6 +144,17 @@ class CohesionProbability:
         return l_words
 
                     
+    def transform(self, docs, l_word_set):
+        
+        def left_match(word):
+            for i in reversed(range(1, len(word) + 1)):
+                if word[:i] in l_word_set:
+                    return word[:i]
+            return ''
+
+        return [[left_match(word) for sent in doc.split('  ') for word in sent.split() if left_match(word)] for doc in docs]
+
+
     def load(self, fname):
         try:
             with open(fname, encoding='utf-8') as f:
