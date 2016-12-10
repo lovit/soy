@@ -1,4 +1,12 @@
 from collections import defaultdict
+from datetime import date, timedelta
+
+def daterange(start_date, end_date, as_str=True):
+    for n in range(int ((end_date - start_date).days)):
+        if as_str:
+            yield str(start_date + timedelta(n))
+        else:
+            yield start_date + timedelta(n)
 
 
 class IntegerEncoder:
