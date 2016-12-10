@@ -1,10 +1,11 @@
 class DoublespaceLineCorpus:
     
-    def __init__(self, corpus_fname, num_doc = -1, num_sent = -1, iter_sent = False):
+    def __init__(self, corpus_fname, num_doc = -1, num_sent = -1, iter_sent = False, skip_header = 0):
         self.corpus_fname = corpus_fname
         self.num_doc = num_doc
         self.num_sent = num_sent
         self.iter_sent = iter_sent
+        self.skip_header = skip_header
 
         is_part = False
         num_sent_tmp = 0
@@ -49,6 +50,9 @@ class DoublespaceLineCorpus:
 
                 if _num_doc >= self.num_doc:
                     break
+                    
+                if _num_doc < self.skip_header:
+                    continue
                     
                 if not self.iter_sent:
                     yield doc
