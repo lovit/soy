@@ -185,7 +185,7 @@ class LRNounExtractor:
             cohesion.prune_extreme_case(cp_min_count)
 
             min_cohesion_probability = kargs.get('cp_min_prob', 0.1)
-            noun_candidates = cohesion.extract(min_count=cp_min_count, min_droprate=kargs.get('cp_min_droprate', 0.4), min_cohesion=(kargs.get('cp_min_prob', 0.2), 0), remove_subword=True)
+            noun_candidates = cohesion.extract(min_count=cp_min_count, min_droprate=kargs.get('cp_min_droprate', 0.4), min_cohesion=(min_cohesion_probability, 0), remove_subword=True)
             noun_candidates = {k:v for k,v in noun_candidates.items() if v[0] > min_cohesion_probability}
 
         # Prediction
@@ -224,7 +224,7 @@ class LRNounExtractor:
         self.transform(docs, min_count)
 
 
-    def transform(self, docs, noun_set=None):
+    def transform(self, doc, noun_set=None):
         if noun_set == None:
             noun_set = self.nouns.keys()
 
@@ -234,7 +234,9 @@ class LRNounExtractor:
                     return word[:i]
             return ''
 
-        return [[left_match(word) for sent in doc.split('  ') for word in sent.split() if left_match(word)] for doc in docs]
+        noun_doc = [[left_match(word) for word in sent.split()] for sent in doc.split('  ')]
+        noun_doc = [[word for word in sent if word] for sent in noun_doc]
+        return noun_doc
     
 
     def _postprocessing(self, noun_candidates, lr_graph):
