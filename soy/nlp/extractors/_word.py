@@ -33,7 +33,74 @@ class CohesionProbability:
         # TODO:implementation recursive token_to_lr
 
         return [token_to_lr(token, recursive) for token in sent.split()]    
-  
+ 
+
+    def recrsive_tokenize(self, token, range_l=6, debug=False):
+        
+        length = len(token)
+        scores = []
+        
+        for b in range(0, length - 1):
+            for r in range(2, range_l + 1):            
+                e = b + r
+                
+                if e > length: 
+                    continue
+                
+                subtoken = token[b:e]
+                cs = cohesion.get_cohesion_probability(subtoken)
+                scores.append((subtoken, b, e, cs[0], cs[1]))
+                
+        scores = sorted(scores, key=lambda x:x[3], reverse=True)    
+        if debug:
+            import pprint
+            pprint.pprint(scores)
+        
+        result=  []
+        
+        num_iter = 0    
+        while scores:
+            
+            word, b, e, cpl, cpr = scores.pop(0)
+            result.append((word, b, e))
+            
+            if not scores:
+                break
+            
+            removals = []
+            for i, (word_, b_, e_, cpl_, cpr_) in enumerate(scores):
+                if (b_ < e and b < e_) or (b_ < e and e_ > b):
+                    removals.append(i)
+            
+            for i in reversed(removals):
+                del scores[i]
+            
+            num_iter += 1
+            if num_iter > 100: break
+        
+        result = sorted(result, key=lambda x:x[1])
+        adds = []
+        
+        for i, base in enumerate(result[:-1]):
+            if base[2] == result[i+1][1]:
+                continue
+            
+            b = base[2]
+            e = result[i+1][1]
+            subtoken = token[b:e]
+            adds.append((subtoken, b, e))
+            
+        if result[-1][2] != length:
+            adds.append((token[result[-1][2]:], result[-1][2], length))
+        if result[0][1] != 0:
+            adds.insert(0, (token[0:result[0][1]], 0, result[0][1]))
+        
+        result = sorted(result + adds, key=lambda x:x[1])
+
+        # TODO: merge n-gram (wrong parsing result)
+        
+        return result
+ 
   
     def get_cohesion_probability(self, word):
         
