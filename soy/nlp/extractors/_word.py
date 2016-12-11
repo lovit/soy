@@ -20,8 +20,21 @@ class CohesionProbability:
         
         self.L = defaultdict(int)
         self.R = defaultdict(int)
-    
-    
+
+
+    def tokenize(self, sent, recursive=False):
+        
+        def token_to_lr(token, recursive=False):
+            length = len(token)
+            if length <= 2: return token
+            l_score = [0] + [self.get_cohesion_probability(token[:i])[0] for i in range(2, length + 1)]
+            return token[:np.argmax(l_score) + 1]
+
+        # TODO:implementation recursive token_to_lr
+
+        return [token_to_lr(token, recursive) for token in sent.split()]    
+  
+  
     def get_cohesion_probability(self, word):
         
         if not word:
