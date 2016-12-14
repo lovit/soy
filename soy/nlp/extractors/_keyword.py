@@ -155,6 +155,21 @@ class Association:
             self.pw2[w2] /= sum_
         print('  - done')
 
+
+    def relative_proportion(self, words1=[], words2=[], min_proportion=0.7, topn=0):
+        
+        raise NotImplemented 
+        
+    
+    def _relative_proportion(self, word1=None, words2=[], min_proportion=0.7, topn=0):
+        
+        # Find idx+, idx-
+        
+        # Merge frequency
+        
+        # Calculate score
+        
+
         
     def save(self, model_prefix):
         try:
@@ -197,4 +212,27 @@ class Association:
             
         except Exception as e:
             print(e)
-            print('filename = %s' % fname)        
+            print('filename = %s' % fname)
+
+
+    def load_index(self, fname):
+        self.encoder.load(fname)
+        
+    
+    def load_mm(self, mm_file):
+        
+        try:
+            with open(mm_file, encoding='utf-8') as f:
+                for num, line in enumerate(f):
+                    if num < 3:
+                        continue
+                        
+                    (w1, w2, v) = [int(c) for c in line.split()]
+                    w1 -= 1
+                    w2 -= 1
+                    
+                    self.w1_w2[w1][w2] = v
+                    self.w2_w1[w2][w1] = v
+                    
+        except Exception as e:
+            print(e)
