@@ -18,7 +18,7 @@ def progress(i, n, length=30, header='', base_time = None):
     
     if base_time != None:
         
-        remain_time = ((time.time() - base_time) / i * (n - i))
+        remain_time = ((time.time() - base_time) / i * (n - i + 1))
         
         if remain_time > 10000:
             message += ' remained %.3f hours' % (remain_time / 3600.0)

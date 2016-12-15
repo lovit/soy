@@ -1,7 +1,10 @@
 from collections import defaultdict
-from soy.utils import IntegerEncoder
+import sys
+import time
 
 import numpy as np
+
+from soy.utils import IntegerEncoder, progress
 
 
 class Association:
@@ -156,20 +159,6 @@ class Association:
         print('  - done')
 
 
-    def relative_proportion(self, words1=[], words2=[], min_proportion=0.7, topn=0):
-        
-        raise NotImplemented 
-        
-    
-    def _relative_proportion(self, word1=None, words2=[], min_proportion=0.7, topn=0):
-        
-        # Find idx+, idx-
-        
-        # Merge frequency
-        
-        # Calculate score
-        
-
         
     def save(self, model_prefix):
         try:
@@ -236,3 +225,149 @@ class Association:
                     
         except Exception as e:
             print(e)
+
+
+
+
+class KeywordExtractor:
+    
+    def __init__(self, tokenize=lambda x:x.split()):
+        self.encoder = IntegerEncoder()
+        self.doc2term = defaultdict(lambda: defaultdict(lambda: 0))
+        self.term2doc = defaultdict(lambda: defaultdict(lambda: 0))
+        self.tokenize = tokenize
+        self.vocabs = defaultdict(lambda: 0)
+
+        
+    def add_docs(self, docs):
+        for doc_id, doc in enumerate(docs):
+            terms = [self.encoder.encode(term) for term in self.tokenize(doc)]
+            terms = [term for term in terms if term != -1]
+            for term in terms:
+                self.doc2term[doc_id][term] += 1
+                self.term2doc[term][doc_id] += 1
+            
+            
+    def scan_vocabs(self, docs, verbose=True):
+        self.vocabs = defaultdict(lambda: 0)
+        for num_doc, doc in enumerate(docs):
+            for term in self.tokenize(doc):
+                self.vocabs[term] += 1
+        
+        
+    def set_vocabs(self, min_count=1):
+        vocabs_ = {term:freq for term, freq in self.vocabs.items() if freq >= min_count}
+        for pair in sorted(vocabs_.items(), key=lambda x:x[1], reverse=True):
+            self.encoder.fit(pair[0])
+        print('num of terms = %d' % len(vocabs_))
+        self.count = defaultdict(lambda: 0, {self.encoder.encode(term):freq for term, freq in vocabs_.items()})
+     
+        
+    def relative_proportion(self, base_words=[], target_words=[], min_proportion=0.7, topn=0, base_min_count=0, target_min_count=0, as_str=False, verbose=True):
+
+        if base_words and type(base_words[0]) == str:
+            base_words = {self.encoder.encode(w1) for w1 in base_words}
+            base_words = [w for w in base_words if w != -1 and self.count.get(w,0) >= base_min_count]
+        elif base_words and type(base_word[0]) == int:
+            base_words = [w for w in base_words if w1 >= 0 and w < len(self.encoder.inverse) and self.count.get(w,0) >= base_min_count]
+        else:
+            base_words = [w for w in self.term2doc.keys() if self.count.get(w,0) >= base_min_count]
+            
+        if not base_words:
+            return []
+        
+        if not target_words:
+            target_words = {w for w in self.term2doc.keys() if self.count.get(w,0) >= target_min_count}
+        elif type(target_words[0]) == str: 
+            target_words = {self.encoder.encode(w) for w in target_words}
+            target_words = {w for w in target_words if w != -1 and self.count.get(w,0) >= target_min_count}
+        else:
+            target_words = {w for w in target_words if w >= 0 and w < len(self.encndoer.inverse) and self.count.get(w,0) >= target_min_count}
+
+        rp = []
+        base_time = time.time()
+        
+        for num_wb, wb in enumerate(base_words):
+            rp.append(self._relative_proportion(wb, target_words, min_proportion))
+            if (verbose) and (num_wb % 10 == 0):
+                sys.stdout.write('\r%s' % progress(num_wb + 1, len(base_words), header='Relative proportion', base_time=base_time))
+        if verbose:
+            print('\rRelative proportion was done')
+                
+        if topn > 0:
+            rp = [rp_[:topn] for rp_ in rp]
+            
+        if as_str:
+            return [[self._to_str(pair) for pair in rp_] for rp_ in rp]
+        
+        return rp
+    
+    
+    def _relative_proportion(self, base_word=None, target_words={-1}, min_proportion=0.7):
+        
+        def merge_rows(docs, doc2term):
+            vector = defaultdict(lambda: 0)
+            for doc in docs:
+                for term, f in doc2term[doc].items():
+                    vector[term] += f
+            sum_ = sum(vector.values())
+            for term in vector.keys():
+                vector[term] = vector[term] / sum_
+            return vector
+        
+        # idx+, idx-
+        docs_p = set(self.term2doc[base_word])
+        docs_n = set(self.doc2term.keys()) - docs_p
+        
+        # Proportion
+        prop_p = merge_rows(docs_p, self.doc2term)
+        prop_n = merge_rows(docs_n, self.doc2term)
+        
+        # Calculate score
+        score = [(base_word, word, (prop_p.get(word,0) / (prop_p.get(word,0) + prop_n.get(word,0)))) for word in target_words if word >= 0 and word != base_word]
+        score = sorted([pair for pair in score if pair[2] >= min_proportion], key=lambda x:x[2], reverse=True)
+        
+        return score
+        
+        
+    def _to_str(self, pair):
+        return (self.encoder.decode(pair[0]), self.encoder.decode(pair[1])) + pair[2:]
+    
+    
+    def save_index(self, fname):
+        
+        raise NotImplemented
+        
+        
+    def save_matrix_as_txt(self, fname):
+        
+        raise NotImplemented
+        
+        
+    def save_matrix_as_mm(self, fname):
+        
+        raise NotImplemented
+        
+    
+    def load_index(self, fname):
+        self.encoder.load(fname)
+        
+    
+    def load_mm(self, mm_file):
+        
+        try:
+            with open(mm_file, encoding='utf-8') as f:
+                for num, line in enumerate(f):
+                    if num < 3:
+                        continue
+                        
+                    (doc, term, v) = [int(c) for c in line.split()]
+                    doc -= 1
+                    term -= 1
+                    
+                    self.doc2term[doc][term] = v
+                    self.term2doc[term][doc] = v
+                    
+        except Exception as e:
+            print(e)
+              
