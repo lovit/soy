@@ -239,14 +239,19 @@ class KeywordExtractor:
         self.vocabs = defaultdict(lambda: 0)
 
         
-    def add_docs(self, docs):
+    def add_docs(self, docs, normalize=False):
         for doc_id, doc in enumerate(docs):
             terms = [self.encoder.encode(term) for term in self.tokenize(doc)]
-            terms = [term for term in terms if term != -1]
-            for term in terms:
-                self.doc2term[doc_id][term] += 1
-                self.term2doc[term][doc_id] += 1
-            
+            terms = [(term, 1) for term in terms if term != -1]
+            if not terms:
+                continue
+            if normalize:
+                v = 1/len(terms)
+                terms = [(term, v) for (term, _) in terms]
+	    for (term, v) in terms:
+                self.doc2term[doc_id][term] += v
+                self.term2doc[term][doc_id] += v
+        
             
     def scan_vocabs(self, docs, verbose=True):
         self.vocabs = defaultdict(lambda: 0)
