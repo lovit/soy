@@ -1,5 +1,7 @@
 from collections import defaultdict
 from datetime import date, timedelta
+import time
+
 
 def daterange(start_date, end_date, as_str=True):
     for n in range(int ((end_date - start_date).days)):
@@ -7,6 +9,27 @@ def daterange(start_date, end_date, as_str=True):
             yield str(start_date + timedelta(n))
         else:
             yield start_date + timedelta(n)
+
+
+def progress(i, n, length=30, header='', base_time = None):
+    
+    perc = int(length * i / float(n))
+    message = ('\r%s: ' % header) + ('#' * perc) + ('-' * (30 - perc)) + ' (%.3f %s)' % (100 * i / n, '%')
+    
+    if base_time != None:
+        
+        remain_time = ((time.time() - base_time) / i * (n - i))
+        
+        if remain_time > 10000:
+            message += ' remained %.3f hours' % (remain_time / 3600.0)
+            
+        elif remain_time > 600:
+            message += ' remained %.3f mins' % (remain_time / 60.0)
+            
+        else:
+            message += ' remained %.3f secs' % (remain_time)
+            
+    return message
 
 
 class IntegerEncoder:
