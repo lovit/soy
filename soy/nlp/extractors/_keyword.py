@@ -1,4 +1,5 @@
 from collections import defaultdict
+import os
 import sys
 import time
 
@@ -273,8 +274,8 @@ class KeywordExtractor:
         if base_words and type(base_words[0]) == str:
             base_words = {self.encoder.encode(w1) for w1 in base_words}
             base_words = [w for w in base_words if w != -1 and self.count.get(w,0) >= base_min_count]
-        elif base_words and type(base_word[0]) == int:
-            base_words = [w for w in base_words if w1 >= 0 and w < len(self.encoder.inverse) and self.count.get(w,0) >= base_min_count]
+        elif base_words and type(base_words[0]) == int:
+            base_words = [w for w in base_words if w >= 0 and w < len(self.encoder.inverse) and self.count.get(w,0) >= base_min_count]
         else:
             base_words = [w for w in self.term2doc.keys() if self.count.get(w,0) >= base_min_count]
             
@@ -287,7 +288,7 @@ class KeywordExtractor:
             target_words = {self.encoder.encode(w) for w in target_words}
             target_words = {w for w in target_words if w != -1 and self.count.get(w,0) >= target_min_count}
         else:
-            target_words = {w for w in target_words if w >= 0 and w < len(self.encndoer.inverse) and self.count.get(w,0) >= target_min_count}
+            target_words = {w for w in target_words if w >= 0 and w < len(self.encoder.inverse) and self.count.get(w,0) >= target_min_count}
 
         rp = []
         base_time = time.time()
