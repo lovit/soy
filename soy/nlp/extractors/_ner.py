@@ -106,13 +106,14 @@ class Word2Vec_NER_Trainer:
         return result
 
 
-    def wrapping_filter(context, key, score,  frequency):
+    def wrapping_filter(context, key, score,  frequency, entity_name):
         return {'C[-1]': ''.join(context[:-1*key[0]]), 
                 'C[1]' : ''.join(context[-1*key[1]:]), 
                 'W[%d]' % key[0]: list(context[:-1*key[0]]), 
                 'W[%d]' % key[1]: list(context[-1*key[1]:]), 
                 'coefficient': score,
-                'training_frequency': frequency}
+                'training_frequency': frequency,
+                'entity_name': entity_name}
 
 
 class Word2vecCorpus:
