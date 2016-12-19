@@ -101,9 +101,19 @@ class Word2Vec_NER_Trainer:
                     score += sum([wf[1] * s for wf, s in zip(word_freq, sim)]) / sum_freq
 
                 score /= len(seed_words)
-                result.append((context, rng, score))
+                result.append((context, rng, score, sum_freq))
 
         return result
+
+
+    def wrapping_filter(context, key, score,  frequency):
+        return {'C[-1]': ''.join(context[:-1*key[0]]), 
+                'C[1]' : ''.join(context[-1*key[1]:]), 
+                'W[%d]' % key[0]: list(context[:-1*key[0]]), 
+                'W[%d]' % key[1]: list(context[-1*key[1]:]), 
+                'coefficient': score,
+                'training_frequency': frequency}
+
 
 class Word2vecCorpus:
     def __init__(self, fname):
