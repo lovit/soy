@@ -215,7 +215,7 @@ class LRNounExtractor:
 
         self.nouns = nouns
 
-        return nouns, noun_candidates  
+        return nouns, cohesion 
 
  
     def extract_and_transform(self, docs, min_count = 10):
