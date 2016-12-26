@@ -322,9 +322,9 @@ class CohesionProbability:
                         
                     token = line.split('\t')
                     if is_right_side:
-                        self.L[token[0]] = int(token[1])
-                    else:
                         self.R[token[0]] = int(token[1])
+                    else:
+                        self.L[token[0]] = int(token[1])
                         
         except Exception as e:
             print(e)
