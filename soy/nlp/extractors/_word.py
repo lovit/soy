@@ -283,7 +283,7 @@ class CohesionProbability:
                     continue
  
                 l_words[word] = word_to_score[word]
-                if (remove_subword) and (word[:-1] in l_words):
+                if (remove_subword) and (droprate >= min_droprate) and  (word[:-1] in l_words):
                     del l_words[word[:-1]]
         
         return l_words
