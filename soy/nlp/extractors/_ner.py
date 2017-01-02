@@ -48,7 +48,11 @@ class Word2Vec_NER_Trainer:
 
                 for rng in ranges:
                     if (i + rng[0] >= 0) and (i + rng[1] < len_doc):
-                        context = tuple([doc[i+r] for r in range(rng[0],0)] + [doc[i+r] for r in range(1, rng[1]+1)])
+                        if rng[0] < 0:
+                            context = tuple([doc[i+r] for r in range(rng[0],0)] + [doc[i+r] for r in range(1, rng[1]+1)])
+                        
+                        else:
+                            context = tuple([''] + [doc[i+r] for r in range(1, rng[1]+1)])
                         word_filters[(rng, context)] += 1
 
         return {filter_:freq for filter_, freq in word_filters.items() if freq >= min_count}
@@ -106,7 +110,7 @@ class Word2Vec_NER_Trainer:
         return result
 
 
-    def wrapping_filter(context, key, score,  frequency, entity_name):
+    def wrapping_filter(self, context, key, score,  frequency, entity_name):
         return {'C[-1]': ''.join(context[:-1*key[0]]), 
                 'C[1]' : ''.join(context[-1*key[1]:]), 
                 'W[%d]' % key[0]: list(context[:-1*key[0]]), 
