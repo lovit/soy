@@ -143,7 +143,7 @@ class LRNounExtractor:
         return lr_graph, encoder
 
 
-    def extract(self, docs, noun_threshold=0.0, known_threshold=0.05, word_extraction='cohesion', kargs={}):
+    def extract(self, docs, noun_threshold=0.05, known_threshold=0.05, word_extraction='cohesion', noun_candidates={}, kargs={}):
         """
         Parameters
         ----------
@@ -179,14 +179,16 @@ class LRNounExtractor:
 
         if word_extraction == 'cohesion':
 
-            cp_min_count = kargs.get('cp_min_count', 30)
+            cohesion_min_count = kargs.get('cp_min_count', 10)
+            cohesion_min_probability = kargs.get('cp_min_prob', 0.05)
+            cohesion_min_droprate = kargs.get('cp_min_droprate', 0.8)
+
             cohesion = CohesionProbability(kargs.get('cp_min_l',1), kargs.get('cp_max_l',10), kargs.get('cp_min_r',1), kargs.get('cp_max_r',6))
             cohesion.train(docs)
-            cohesion.prune_extreme_case(cp_min_count)
+            cohesion.prune_extreme_case(cohesion_min_count)
 
-            min_cohesion_probability = kargs.get('cp_min_prob', 0.1)
-            noun_candidates = cohesion.extract(min_count=cp_min_count, min_droprate=kargs.get('cp_min_droprate', 0.4), min_cohesion=(min_cohesion_probability, 0), remove_subword=True)
-            noun_candidates = {k:v for k,v in noun_candidates.items() if v[0] > min_cohesion_probability}
+            noun_candidates = cohesion.extract(min_count=cohesion_min_count, min_droprate=cohesion_min_droprate, min_cohesion=(cohesion_min_probability, 0), remove_subword=True)
+            noun_candidates = {k:v for k,v in noun_candidates.items() if v[0] > cohesion_min_probability}
 
         # Prediction
         if not noun_candidates:
@@ -194,8 +196,9 @@ class LRNounExtractor:
             print('cannot find word candidates')
 
         nouns = dict()
+        noun_candidates = sorted(noun_candidates.items(), key=lambda x:len(x[0]))
 
-        for word, word_score in noun_candidates.items():
+        for word, word_score in noun_candidates:
             if not word in encoder.mapper:
                 continue
 
@@ -203,17 +206,46 @@ class LRNounExtractor:
             r_features = {encoder.decode(r, unknown='Unk'):f for r,f in r_features.items()}
             if 'Unk' in r_features: del r_features['Unk']
 
-            if not r_features:
-                nouns[word] = (0,0)
+            if (not r_features) or (list(r_features.keys()) == ''):
+                for e in range(1, len(word) + 1):
+                    subword = word[:e]
+                    suffix = word[e:]
+
+                # Add word if compound
+                if (subword in nouns) and (suffix in nouns):
+                    score1 = nouns[subword]
+                    score2 = nouns[suffix]
+                    nouns[word] = score1 if score1[0] > score2[0] else score2
+                    break
+
+                if (subword in nouns) and (self.r_score.get(suffix,0.0) < noun_threshold):
+                    break
+
             noun_score = self.predict(r_features)
 
             if noun_score[0] > noun_threshold:
                 nouns[word] = noun_score
 
-        # Post processing
-        # Not yet: TODO
+        # 공교롭게도 = 공교롭게 + 도
+        removals = set()
+        for word in sorted(nouns.keys(), key=lambda x:len(x[0]), reverse=True):
+             if len(word) <= 2:
+                 continue
+
+             if word[-1] == '.':
+                 removals.add(word)
+
+             for e in range(1, len(word)):
+                if (word[:e] in nouns) and (self.r_score.get(word[e:], 0.0) > noun_threshold):
+                    removals.add(word)
+                    break
+
+        for removal in removals:
+            del nouns[removal]        
 
         self.nouns = nouns
+        self.lr_graph = lr_graph
+        self.lr_graph_encoder = encoder
 
         return nouns, cohesion 
 

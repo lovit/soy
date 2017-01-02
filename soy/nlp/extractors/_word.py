@@ -247,48 +247,42 @@ class CohesionProbability:
                 self.prune_extreme_case(min_count)
 
                 
-    def extract(self, min_count=5, min_cohesion=(0.3, 0), min_droprate=0.4, remove_subword=True):
+    def extract(self, min_count=5, min_cohesion=(0.05, 0), min_droprate=0.8, remove_subword=True):
         
         word_to_score = self.get_all_cohesion_probabilities()
-        words = []
-        
-        for word, score in word_to_score.items():
-            
-            if (score[0] < min_cohesion[0]) or (score[1] < min_cohesion[1]):
-                continue
-            if (score[2] < min_count):
-                continue
-                
-            words.append(word)
-        
-        by_length = defaultdict(lambda: [])
-        for word in words:
-            by_length[len(word)].append(word)
-        
-        l_words = {}
-        
-        # Extracting L words       
-        for length, word_list in sorted(by_length.items(), key=lambda x:x[0], reverse=False):
-            if length == 1:
-                continue
-            
-            for word in word_list:
-                score = word_to_score[word]
-                subscore = word_to_score[word[:-1]]
-                droprate = score[2] / subscore[2] if subscore[2] > 0 else 1.0 
-                if (droprate == 1.0) and (word[:-1] in l_words):
-                    del l_words[word[:-1]]
-                
-                if length > 2 and droprate < min_droprate:
-                    continue
- 
-                l_words[word] = word_to_score[word]
-                if (remove_subword) and (droprate >= min_droprate) and  (word[:-1] in l_words):
-                    del l_words[word[:-1]]
-        
-        return l_words
+        word_to_score = {word:score for word, score in word_to_score.items() 
+                         if (score[0] >= min_cohesion[0]) 
+                         and (score[1] >= min_cohesion[1])
+                         and (score[2] >= min_count)}
 
-                    
+        if not remove_subword:
+            return word_to_score
+
+        words = {}
+
+        for word, score in sorted(word_to_score.items(), key=lambda x:len(x[0])):
+            len_word = len(word)
+            if len_word <= 2:
+                words[word] = score
+                continue
+
+            try:
+                subword = word[:-1]
+                subscore = self.get_cohesion_probability(subword)
+                droprate = score[2] / subscore[2]
+
+                if (droprate >= min_droprate) and (subword in words):
+                    del words[subword]
+
+                words[word] = score
+
+            except:
+                print(word, score, subscore)
+                break
+
+        return words
+    
+                
     def transform(self, docs, l_word_set):
         
         def left_match(word):
