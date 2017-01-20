@@ -157,7 +157,7 @@ class Model:
     
     def filter_counters(self, num_doc):
         before = self.CF.num_of_tags()
-        self.CF.filter_words(self.min_count)
+        self.CF.filter_tags(self.min_count)
         after = self.CF.num_of_tags()
         sys.stdout.write('\rall tags length = %d --> %d, (num_doc = %d)' % (before, after, num_doc))
     
