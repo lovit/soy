@@ -525,21 +525,17 @@ class Model:
         else:
             with open(fname, encoding='utf-8') as f:
                 
-                # skip: ## parameters
-#                self.min_window = int(next(f).split('min_window = ')[1].replace('\n',''))
-#                self.max_window = int(next(f).split('max_window = ')[1].replace('\n',''))
-#                self.filtering_document_min_count = int(next(f).split('filtering_document_min_count = ')[1].replace('\n',''))
-#                self.min_count = int(next(f).split('min_count = ')[1].replace('\n',''))
-#                ## counters
                 for i in range(6):
                     next(f)
 
-                next(f) # skip: ## counters
-                for line in f:
-                    chars, tags, frequency = line.replace('\n', '').split(' ')
-                    tags = tuple([int(t) for t in tags])
-                    frequency = int(frequency)
-                    self.CF.add(chars, tags, frequency = frequency)
+                try:
+                    for line in f:
+                        chars, tags, frequency = line.replace('\n', '').split(' ')
+                        tags = tuple([int(t) for t in tags])
+                        frequency = int(frequency)
+                        self.CF.add(chars, tags, frequency = frequency)
+                except:
+                    print('parsing error %s' % line)
 
                 
                 
