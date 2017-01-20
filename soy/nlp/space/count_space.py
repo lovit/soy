@@ -525,12 +525,13 @@ class Model:
         else:
             with open(fname, encoding='utf-8') as f:
                 
-                next(f) # skip: ## parameters
+                # skip: ## parameters
 #                self.min_window = int(next(f).split('min_window = ')[1].replace('\n',''))
 #                self.max_window = int(next(f).split('max_window = ')[1].replace('\n',''))
 #                self.filtering_document_min_count = int(next(f).split('filtering_document_min_count = ')[1].replace('\n',''))
 #                self.min_count = int(next(f).split('min_count = ')[1].replace('\n',''))
-                for i in range(4):
+#                ## counters
+                for i in range(6):
                     next(f)
 
                 next(f) # skip: ## counters
