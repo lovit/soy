@@ -103,11 +103,16 @@ class CharsFrequency:
                 
      
     def filter_tags(self, min_count):
+        remove_chars = []
+
         for chars in self.C.keys():
             self.C[chars] = defaultdict(lambda:0, {k:v for k, v in self.C[chars].items() if v >= min_count})
             if not self.C[chars]:
-                del self.C[chars]
-                    
+            	remove_chars.append(chars)
+
+        for chars in remove_chars:
+            del self.C[chars]
+            
                     
     def num_of_chars(self):
         return len(self.C)
