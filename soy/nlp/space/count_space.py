@@ -512,6 +512,8 @@ class Model:
             
             f.write('## counters\n')
             for chars, tagdic in self.CF.C.items():
+                if not tagdic:
+                    continue
                 for tags, frequency in tagdic.items():
                     tags = ''.join([str(t) for t in tags])
                     f.write('%s %s %d\n' % (chars, tags, frequency))
@@ -528,14 +530,14 @@ class Model:
                 for i in range(6):
                     next(f)
 
-                try:
-                    for line in f:
+                for line in f:
+                    try:
                         chars, tags, frequency = line.replace('\n', '').split(' ')
                         tags = tuple([int(t) for t in tags])
                         frequency = int(frequency)
                         self.CF.add(chars, tags, frequency = frequency)
-                except:
-                    print('parsing error %s' % line)
+                    except:
+                        continue
 
                 
                 
