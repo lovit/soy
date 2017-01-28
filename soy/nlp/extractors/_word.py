@@ -634,6 +634,7 @@ class KR_WordRank:
         
         keywords = self._select_keywords(lset, rset)
         keywords = self._filter_compounds(keywords)
+        keywords = self._filter_subtokens(keywords)
         
         return keywords, rank, graph
         
@@ -677,6 +678,25 @@ class KR_WordRank:
             if not is_compound:
                 keywords_[word] = r
         
+        return keywords_
+
+    def _filter_subtokens(self, keywords):
+        subtokens = set()
+        keywords_ = {}
+
+        for word, r in sorted(keywords.items(), key=lambda x:x[1], reverse=True):
+            subs = {word[:e] for e in range(2, len(word)+1)}
+            
+            is_subtoken = False
+            for sub in subs:
+                if sub in subtokens:
+                    is_subtoken = True
+                    break
+            
+            if not is_subtoken:
+                keywords_[word] = r
+                subtokens.update(subs)
+
         return keywords_
     
     def train(self, docs, beta=0.85, max_iter=10, verbose=True, vocabulary={}, bias={}):
