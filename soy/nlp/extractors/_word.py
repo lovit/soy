@@ -583,7 +583,12 @@ class BranchingEntropy:
 
 
 class KR_WordRank:
-    
+    """Unsupervised Korean Keyword Extractor
+
+    Implementation of Kim, H. J., Cho, S., & Kang, P. (2014). KR-WordRank: 
+    An Unsupervised Korean Word Extraction Method Based on WordRank. 
+    Journal of Korean Institute of Industrial Engineers, 40(1), 18-33.
+    """
     def __init__(self, min_count=5, max_length=10):
         self.min_count = min_count
         self.max_length = max_length
