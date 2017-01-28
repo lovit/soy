@@ -584,10 +584,10 @@ class BranchingEntropy:
 
 class KR_WordRank:
     
-    def __init__(self, min_count=5, max_length=10, sum_weight=100):
+    def __init__(self, min_count=5, max_length=10):
         self.min_count = min_count
         self.max_length = max_length
-        self.sum_weight = sum_weight
+        self.sum_weight = 1
         self.vocabulary = {}
         self.index2vocab = []
 
@@ -624,6 +624,7 @@ class KR_WordRank:
     
     def _build_index2vocab(self):
         self.index2vocab = [vocab for vocab, index in sorted(self.vocabulary.items(), key=lambda x:x[1])]
+        self.sum_weight = len(self.index2vocab)
     
     def extract(self, docs, beta=0.85, max_iter=10, verbose=True, vocabulary={}, bias={}, rset={}):
         rank, graph = self.train(docs, beta, max_iter, verbose, vocabulary, bias)
@@ -726,8 +727,6 @@ class KR_WordRank:
     
     def _construct_word_graph(self, docs):
         def normalize(graph):
-            # TODO: check normalize는 inbound 기준인가? outbound 기준인가? 
-            # input은 from_to graph인데, output은 to_from graph로 가야 inbound로 쓸 수 있음
             graph_ = defaultdict(lambda: defaultdict(lambda: 0))
             for from_, to_dict in graph.items():
                 sum_ = sum(to_dict.values())
