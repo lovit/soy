@@ -1,3 +1,4 @@
 from ._word import CohesionProbability
 from ._word import BranchingEntropy
+from ._word import KR_WordRank
 from ._ner import Word2Vec_NER_Trainer
