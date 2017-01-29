@@ -7,3 +7,6 @@ __pycache__/
 
 # Experiments
 tmp/
+
+# Jupyter notebook
+.ipynb_checkpoints/
