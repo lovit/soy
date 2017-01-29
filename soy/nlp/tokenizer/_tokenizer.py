@@ -134,7 +134,7 @@ class CohesionTokenizer:
         words = flatten(tokens)
 
         if not debug:
-            tokens = [word[0] for word in words]
+            tokens = [word if type(word) == str else word[0] for word in words]
 
         return tokens
 
