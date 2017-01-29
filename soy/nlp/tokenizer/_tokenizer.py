@@ -121,16 +121,14 @@ class MaxScoreTokenizer:
 
 class CohesionTokenizer:
     
-    def __init__(self, cohesion, max_ngram=4, length_penalty=-0.05):
+    def __init__(self, cohesion):
         self.cohesion = cohesion
         self.range_l = cohesion.left_max_length
-        self.max_n = max_ngram 
-        self.length_penalty = length_penalty
         
-    def tokenize(self, sentence, ngram=False, debug=False):
-        return [self._recursive_tokenize(token, ngram, debug) for token in sentence.split()]
+    def tokenize(self, sentence, max_ngram=4, length_penalty=-0.05, ngram=False, debug=False):
+        return [self._recursive_tokenize(token, max_ngram, length_penalty, ngram, debug) for token in sentence.split()]
 
-    def _recursive_tokenize(self, token, ngram=False, debug=False):
+    def _recursive_tokenize(self, token, max_ngram=4, length_penalty=-0.05, ngram=False, debug=False):
        
         length = len(token)
         if length <= 2:
@@ -155,7 +153,7 @@ class CohesionTokenizer:
         result = sorted(result + adds, key=lambda x:x[1])
         
         if ngram:
-            result = self._extract_ngram(result, self.max_n, self.length_penalty)
+            result = self._extract_ngram(result, max_ngram, length_penalty)
 
         return result
  
@@ -224,7 +222,7 @@ class CohesionTokenizer:
         score = self.cohesion.get_cohesion_probability(subtoken)
         return [(subtoken, 0, e, score[0], score[2], e)]
     
-    def _extract_ngram(self, words, max_n=4, length_penalty = -0.05):
+    def _extract_ngram(self, words, max_ngram=4, length_penalty = -0.05):
 
         def ngram_average_score(words):
             words = [word for word in words if len(word) > 1]
@@ -241,7 +239,7 @@ class CohesionTokenizer:
             scores.append(word)
 
         for b in range(0, length - 1):
-            for r in range(2, max_n + 1):            
+            for r in range(2, max_ngram + 1):            
                 e = b + r
 
                 if e > length: 
