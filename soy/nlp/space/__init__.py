@@ -1,1 +1,1 @@
-from .count_space import RuleDict, CharsFrequency, Model
+from ._count_space import RuleDict, CharsFrequency, CountSpace

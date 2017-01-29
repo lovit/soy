@@ -25,6 +25,7 @@ class RuleDict:
                 self.rule_dict.update(self.load_file(f))
         else:
             self.rule_dict.update(self.load_file(fname))
+            
         self.min_rule_length = min_rule_length
         self.max_rule_length = max_rule_length
     
@@ -106,9 +107,9 @@ class CharsFrequency:
         remove_chars = []
 
         for chars in self.C.keys():
-            self.C[chars] = defaultdict(lambda:0, {k:v for k, v in self.C[chars].items() if v >= min_count})
-            if not self.C[chars]:
-            	remove_chars.append(chars)
+            sum_ = sum(self.C[chars].values())
+            if sum_ < min_count:
+                remove_chars.append(chars)
 
         for chars in remove_chars:
             del self.C[chars]
@@ -119,14 +120,12 @@ class CharsFrequency:
     
     
     def num_of_tags(self):
-        length = 0
-        for char, tagdict in self.C.items():
-            length += len(self.C[char])
-
-        return length
+        return sum([len(tags) for tags in self.C.values()])
     
 
-class Model:
+    
+    
+class CountSpace:
     
     def __init__(self, min_window=3, max_window=7, filtering_document_min_count=10000, min_count=5):
         '''
@@ -152,15 +151,14 @@ class Model:
         self.CF = CharsFrequency()
 
         
-    def __extract(self, doc, window):
-        chars, tags = self.space_tag(doc) ## 수정함
+    def _extract(self, chars, tags, window):
         if len(chars) < window:
             return list()
         else:
             return [(chars[i:(i+window)], tags[i:(i+window)]) for i in range(len(chars) - window+1)]
     
     
-    def filter_counters(self, num_doc):
+    def _filter_counters(self, num_doc):
         before = self.CF.num_of_tags()
         self.CF.filter_tags(self.min_count)
         after = self.CF.num_of_tags()
@@ -170,21 +168,25 @@ class Model:
     def train(self, fname, num_lines=-1):
         with open(fname, encoding='utf-8') as f:
             for num_doc, doc in enumerate(f): 
+                
+                doc = doc.replace('\n', '')
 
                 if not doc: 
                     continue
                     
+                chars, tags = self.space_tag(doc)
+                
                 for w in range(self.min_window, self.max_window + 1):
-                    for chars, tags in self.__extract(doc, w):
-                        self.CF.add(chars, tuple(tags))
+                    for chars_, tags_ in self._extract(chars, tags, w):
+                        self.CF.add(chars_, tuple(tags_))
                         
-                if num_doc > 0 and num_doc % self.filtering_document_min_count == 0:
-                    self.filter_counters(num_doc)
+                if (num_doc > 0) and ((num_doc + 1) % self.filtering_document_min_count == 0):
+                    self._filter_counters(num_doc)
 
                 if not num_lines == -1 and num_doc >= num_lines: 
                     break
                 
-            self.filter_counters(num_doc)
+            self._filter_counters(num_doc)
     
     
     def print_tags(self, tags, head = None):
@@ -346,6 +348,11 @@ class Model:
         scores_lcr = [self.score_lcr(features, min_count) for features in features_list]
         scores = [self.score(score_lcr) for score_lcr in scores_lcr]
         
+        if debug:
+            for i, (c, score, lcr) in enumerate(zip(chars, scores, scores_lcr)):
+                sum_freq = sum([feature[2] for feature in features_list[i]])
+                print('%d: %s (%.3f, %d)\tlcr = (%.3f, %.3f, %.3f)' % (i, c, score, sum_freq, lcr[0], lcr[1], lcr[2]))
+        
         num_iter = 0
         while True :
             
@@ -500,8 +507,16 @@ class Model:
             return 0
 
         
-    def save_model(self, fname):
+    def save_model(self, fname, json_format=True):
 
+        if json_format:
+            self._save_model_as_json(fname)
+        else:
+            self._save_model_as_text(fname)
+            
+    
+    def _save_model_as_text(self, fname):
+        
         with open(fname, 'w', encoding='utf-8') as f:
         
             f.write('## parameters\n')
@@ -511,43 +526,89 @@ class Model:
             f.write('min_count = %d\n' % self.min_count)
             
             f.write('## counters\n')
+            
             for chars, tagdic in self.CF.C.items():
+                
                 if not tagdic:
                     continue
+                    
                 for tags, frequency in tagdic.items():
                     tags = ''.join([str(t) for t in tags])
                     f.write('%s %s %d\n' % (chars, tags, frequency))
 
-            
-    def load_model(self, fname, json_input=True):
+                    
+    def _save_model_as_json(self, fname):
         
-        if json_input:
-            self._load_model_from_json(fname)
+        model_json = {}
+        
+        parameters = {
+            'min_window': self.min_window, 
+            'max_window': self.max_window,
+            'min_count': self.min_count, 
+            'filtering_document_min_count': self.filtering_document_min_count
+        }
+        model_json['parameters'] = parameters
+        
+        def tag_as_json(tagdic):
+            return {''.join([str(t) for t in tags]):freq for tags, freq in tagdic.items()}
+        
+        counters = {chars:tag_as_json(tagdic) for chars, tagdic in self.CF.C.items() if len(tagdic) > 0}
+        model_json['counters'] = counters
+        
+        with open(fname, 'w', encoding='utf-8') as f:
+            json.dump(model_json, f, ensure_ascii=False, indent=4)
             
+            
+    def load_model(self, fname, json_format=True):
+        
+        if json_format:
+            self._load_model_from_json(fname)
         else:
-            with open(fname, encoding='utf-8') as f:
-                
-                for i in range(6):
-                    next(f)
+            self._load_model_from_text(fname)
+            
 
-                for line in f:
-                    try:
-                        chars, tags, frequency = line.replace('\n', '').split(' ')
-                        tags = tuple([int(t) for t in tags])
-                        frequency = int(frequency)
-                        self.CF.add(chars, tags, frequency = frequency)
-                    except:
-                        continue
-
+    def _load_model_from_text(self, fname):
+        
+        with open(fname, encoding='utf-8') as f:
+            
+            next(f) # Skip: ## parameters
+            self.min_window = int(next(f).split(' = ')[1])
+            self.max_window = int(next(f).split(' = ')[1])
+            self.filtering_document_min_count = int(next(f).split(' = ')[1])
+            self.min_count = int(next(f).split(' = ')[1])
+            
+            next(f) # Skip: ## counters
+            
+            num_exception = 0
+            for line in f:
                 
+                try:
+                    chars, tags, frequency = line.replace('\n', '').split(' ')
+                    tags = tuple([int(t) for t in tags])
+                    frequency = int(frequency)
+                    self.CF.add(chars, tags, frequency = frequency)
+                except:
+                    num_exception += 1
+                    continue
+                    
+            if num_exception > 0:
+                print('num (chars, tags, freq) parsing exception = %d' % num_exception)
+
                 
     def _load_model_from_json(self, fname):
         with open(fname, encoding='utf-8') as f:
             model_json = json.load(f)
-#        self.min_window = model_json['parameters']['min_window']
-#        self.max_window = model_json['parameters']['max_window']
-#        self.filtering_document_min_count = model_json['parameters']['filtering_document_min_count']
-#        self.min_count = model_json['parameters']['min_count']
+        
+        parameters = model_json['parameters']
+        self.min_window = parameters.get('min_window', self.min_window)
+        self.max_window = parameters.get('max_window', self.max_window)
+        self.min_count = model_json['parameters']['min_count']
+        
+        # Compatability for old-version model
+        if 'filtering_document_min_count' in parameters:
+            self.filtering_document_min_count = parameters['filtering_document_min_count']
+        if 'filtering_epoch' in parameters:
+            self.filtering_document_min_count = parameters['filtering_epoch']
         
         loaded_counter = model_json['counters']
         
@@ -556,3 +617,4 @@ class Model:
                 tags = tuple([int(t) for t in tags])
                 freq = int(freq)
                 self.CF.add(chars, tags, frequency = freq)
+
