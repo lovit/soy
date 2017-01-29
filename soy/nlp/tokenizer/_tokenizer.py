@@ -126,13 +126,23 @@ class CohesionTokenizer:
         self.range_l = cohesion.left_max_length
         
     def tokenize(self, sentence, max_ngram=4, length_penalty=-0.05, ngram=False, debug=False):
-        return [self._recursive_tokenize(token, max_ngram, length_penalty, ngram, debug) for token in sentence.split()]
+
+        def flatten(tokens):
+            return [word for token in tokens for word in token]
+
+        tokens = [self._recursive_tokenize(token, max_ngram, length_penalty, ngram, debug) for token in sentence.split()]
+        words = flatten(tokens)
+
+        if not debug:
+            tokens = [word[0] for word in words]
+
+        return tokens
 
     def _recursive_tokenize(self, token, max_ngram=4, length_penalty=-0.05, ngram=False, debug=False):
        
         length = len(token)
         if length <= 2:
-            return token
+            return [token]
 
         range_l = min(self.range_l, length)
 
