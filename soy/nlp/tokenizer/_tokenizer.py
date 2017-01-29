@@ -1,7 +1,8 @@
 from pprint import pprint
 import numpy as np
 
-class LRTokenizer:
+
+class LTokenizer:
     
     def __init__(self, scores={}, default_score=0.0):
         self.scores = scores
@@ -12,9 +13,10 @@ class LRTokenizer:
         def token_to_lr(token):
             length = len(token)
             if length <= 2: return token
-            l_score = [0] + [self.scores.get(token[:i], self.ds) for i in range(1, length + 1)]
-            e = np.argmax(l_score)
-            return (token[:e], token[e:])
+            candidates = [(token[:e], token[e:]) for e in range(2, length + 1)]
+            candidates = [(self.scores.get(t[0], self.ds), t[0], t[1]) for t in candidates]
+            best = sorted(candidates, key=lambda x:(x[0], len(x[1])), reverse=True)[0]
+            return (best[1], best[2])
 
         return [token_to_lr(token) for token in sentence.split()]
 
