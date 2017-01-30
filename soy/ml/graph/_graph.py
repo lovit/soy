@@ -4,7 +4,79 @@ from collections import defaultdict
 import numpy as np
 
 
-class graph:
+class Graph:
+    
+    def __init__(self):
+        self.node2int = defaultdict(lambda: len(self.node2int))
+        self.int2node = {}
+        self.inb = defaultdict(lambda: defaultdict(lambda: 0))
+        self.outb = defaultdict(lambda: defaultdict(lambda: 0))
+
+    def add(self, from_node, to_node, weight=1.0, undirected=False):
+        from_node = self._type_check(from_node)
+        to_node = self._type_check(to_node)
+        self.inb[to_node][from_node] += weight
+        self.outb[from_node][to_node] += weight
+        
+        if undirected:
+            self.inb[from_node][to_node] += weight
+            self.outb[to_node][from_node] += weight
+        
+    def _type_check(self, node, add_unknown=True):
+        if type(node) != int:
+            if add_unknown:
+                idx = self.node2int[node]
+                self.int2node[idx] = node
+                return idx
+            else:
+                return self.node2int.get(node, -1)
+        return node
+    
+    def inbounds(self, to_node):
+        if (type(to_node) != int) and ((to_node in self.node2int) == False):
+            return {}
+        to_node = self._type_check(to_node)
+        return dict(self.inb.get(to_node, {}))
+    
+    def outbounds(self, from_node):
+        if (type(from_node) != int) and ((from_node in self.node2int) == False):
+            return {}
+        from_node = self._type_check(from_node)
+        return dict(self.outb.get(from_node, {}))
+    
+    def normalize(self, base='from'):
+        if base == 'from':
+            self._outbound_normalize()
+        else:
+            self._inbound_normalize()
+    
+    def _inbound_normalize(self):
+        for to_node in self.inb.keys():
+            inbs = self.inb[to_node]
+            sum_ = sum(inbs.values())
+            
+            for from_node, w in inbs.items():
+                inbs[from_node] = w / sum_
+                self.outb[from_node][to_node] = w / sum_
+            self.inb[to_node] = inbs
+        
+    def _outbound_normalize(self):
+        for from_node in self.outb.keys():
+            outbs = self.outb[from_node]
+            sum_ = sum(outbs.values())
+    
+            for to_node, w in outbs.items():
+                outbs[to_node] = w / sum_
+                self.inb[to_node][from_node] = w / sum_
+            self.outb[from_node] = outbs
+            
+    def nodes(self):
+        node_set = set(self.inb.keys())
+        node_set.update(set(self.outb.keys()))
+        return node_set
+        
+
+class GraphInterface:
     
     def add(self, f, t, w):
         raise NotImplemented
@@ -72,7 +144,7 @@ class graph:
         raise NotImplemented
 
 
-class list_graph(graph):
+class list_graph(GraphInterface):
     
     def __init__(self, fname = None):
         self._outb_n = []
@@ -151,7 +223,7 @@ class list_graph(graph):
         raise NotImplemented
 
 
-class dict_graph(graph):
+class dict_graph(GraphInterface):
     
     def __init__(self, fname = None):
         self._outb = defaultdict(lambda: defaultdict(lambda: 0.0))
