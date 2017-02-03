@@ -119,7 +119,11 @@ class FastCosine():
         for t, d_dict in t2d.items():
             self.idf[t] = np.log(self.num_doc / len(d_dict))
         
-    def query(self, query, n_neighbors=10, candidate_factor=3.0, earlystop_cut=1.0, w_cut=0.5, score_as_add=True, compute_true_cosine=False):
+    def rneighbors(self, query, query_range=0.2, candidate_factor=3.0, earlystop_cut=1.0, w_cut=0.5, score_as_add=True, compute_true_cosine=False):
+        # TODO
+        raise NotImplementedError
+
+    def kneighbors(self, query, n_neighbors=10, candidate_factor=3.0, earlystop_cut=1.0, w_cut=0.5, score_as_add=True, compute_true_cosine=False):
         '''query: {term:weight, ..., }
         
         '''
