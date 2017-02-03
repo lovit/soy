@@ -13,6 +13,15 @@ class FastCosine():
         self.idf = {}
         self.num_doc = 0
         self.num_term = 0
+
+        self._base_time = None
+
+    def _get_process_time(self):
+        if self._base_time == None:
+            self._base_time = time.time()
+        process_time = 1000 * (time.time() - self._base_time)
+        self._base_time = time.time()
+        return process_time
     
     def indexing(self, mm_file):
         t2d, norm_d = self._load_mm(mm_file)
@@ -81,7 +90,7 @@ class FastCosine():
     def _build_champion_list(self, t2d):
         def pack(wd):
             '''
-            chunk: [(w1, d1), (w2, d2), ... ] 
+            chunk: [(w1, (d11, d12, ...)), (w2, (d21, d22, d23, ...)), ... ] 
             return (
                     (w1, w2, w3, w4),
                     (len(d1), len(d2), len(d3), len(d4)),
@@ -115,39 +124,28 @@ class FastCosine():
         
         '''
         
-        base_time = time.time()
+        times = {}
+        self._get_process_time()
         
         query = self._check_query(query)
         if not query:
-            return {}
-        check_query_time = time.time() - base_time
+            return {}, {}
+        times['check_query_type'] = self._get_process_time()
         
-        part_base_time = time.time()
         query = self._order_search_term(query)
-        order_search_term_time = time.time() - part_base_time
+        times['order_search_term'] = self._get_process_time()
         
-        part_base_time = time.time()
         n_candidates = n_neighbors * candidate_factor
         scores, info = self._retrieve_similars(query, n_candidates, earlystop_cut, w_cut, score_as_add)
         scores = scores[:n_neighbors]
-        retrieve_time = time.time() - part_base_time
+        times['retrieval_similars'] = self._get_process_time()
         
-        part_base_time = time.time()
         if compute_true_cosine:
             neighbors_idx, _ = zip(*scores)
             scores = self._exact_computation(query, neighbors_idx)
-        true_cosine_computation_time = time.time() - part_base_time
-
-        process_time = time.time() - base_time
-        
-        info['time [mil.sec]'] = {
-            'whole_querying_process ': 1000 * process_time, 
-            'check_query_type': 1000 * check_query_time,
-            'order_search_term': 1000 * order_search_term_time,
-            'true_cosine_computation': 1000 * true_cosine_computation_time,
-            'retrieval_similars': 1000 * retrieve_time
-        }
-        
+        times['true_cosine_computation'] = self._get_process_time()
+        times['whole_querying_process'] = sum(times.values())
+        info['time [mil.sec]'] = times
         return scores, info
     
     def _check_query(self, query):
@@ -160,7 +158,7 @@ class FastCosine():
         query = sorted(query, key=lambda x:x[2], reverse=True)
         return query
     
-    def _retrieve_similars(self, query, n_candidates, earlystop_cut=1.0, w_cut=0.5, score_as_add=False):
+    def _retrieve_similars(self, query, n_candidates, earlystop_cut=0.5, w_cut=0.2, score_as_add=False):
 
         def select_champs(champ_list, n_candidates, w_cut=0.5):
             w_cut_threshold = (champ_list[0][0] * w_cut)
@@ -194,7 +192,7 @@ class FastCosine():
                     scores[d] = scores.get(d, 0) + (w if score_as_add else qw * w)
                 n_computation += num
 
-            if tfidf < earlystop_cut:
+            if (remain_proportion * tfidf) < earlystop_cut:
                 break
 
         info = {
