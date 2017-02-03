@@ -78,9 +78,10 @@ class FastCosine():
     
     def _normalize_weight(self, t2d, norm_d):
         def div(d_dict, norm_d):
+            norm_dict = {}
             for d, w in d_dict.items():
-                d_dict[d] = w / norm_d[d]
-            return d_dict
+                norm_dict[d] = w / norm_d[d]
+            return norm_dict
                 
         for t, d_dict in t2d.items():
             t2d[t] = div(d_dict, norm_d)
@@ -139,7 +140,7 @@ class FastCosine():
         query = self._order_search_term(query)
         times['order_search_term'] = self._get_process_time()
         
-        n_candidates = n_neighbors * candidate_factor
+        n_candidates = int(n_neighbors * candidate_factor)
         scores, info = self._retrieve_similars(query, n_candidates, earlystop_cut, w_cut, score_as_add)
         scores = scores[:n_neighbors]
         times['retrieval_similars'] = self._get_process_time()
@@ -225,7 +226,7 @@ class FastCosine():
                     if d in docs:
                         scores[d] = scores.get(d, 0) + (w * qw)
         
-        return scores
+        return sorted(scores.items(), key=lambda x:x[1], reverse=True)
     
     def save(self, model_prefix):
         self._save_inverted_index('%s_inverted_index' % model_prefix)
