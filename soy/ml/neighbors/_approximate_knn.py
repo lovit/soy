@@ -197,6 +197,8 @@ class FastCosine():
                     scores[d] = scores.get(d, 0) + (w if score_as_add else qw * w)
                 n_computation += num
 
+            remain_proportion -= (qw ** 2)
+
             if (remain_proportion * tfidf) < earlystop_cut:
                 break
 
