@@ -35,7 +35,7 @@ class MaxScoreTokenizer:
        
         length = len(token)
         if length <= 2:
-            return token
+            return [(token, 0, length, self.ds, length)]
 
         if range_l == 0:
             range_l = min(self.max_length, length)
