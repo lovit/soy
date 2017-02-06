@@ -169,12 +169,15 @@ class FastCosine():
             w_cut_threshold = (champ_list[0][0] * w_cut)
             sum_num = 0
             for i, (w, num, docs) in enumerate(zip(*champ_list)):
-                if w < w_cut_threshold:
+                if (i > 0) and (w < w_cut_threshold):
                     break
                 sum_num += num
                 if sum_num >= n_candidates:
                     break
-            return [champ_list[0][:i], champ_list[1][:i], champ_list[2][:i]]
+            if (i == 0) and (sum_num > n_candidates):
+                return [champ_list[0][0], [n_candidates], champ_list[2][:n_candidates]]
+            else:
+                return [champ_list[0][:i+1], champ_list[1][:i+1], champ_list[2][:i+1]]
 
         scores = {}
         remain_proportion = 1
