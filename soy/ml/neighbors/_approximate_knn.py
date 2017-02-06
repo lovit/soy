@@ -175,7 +175,7 @@ class FastCosine():
                 if sum_num >= n_candidates:
                     break
             if (i == 0) and (sum_num > n_candidates):
-                return [champ_list[0][0], [n_candidates], champ_list[2][:n_candidates]]
+                return [champ_list[0][:1], [n_candidates], champ_list[2][:n_candidates]]
             else:
                 return [champ_list[0][:i+1], champ_list[1][:i+1], champ_list[2][:i+1]]
 
