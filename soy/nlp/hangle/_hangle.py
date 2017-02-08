@@ -1,7 +1,7 @@
 import re
 
 kor_begin     = 44032
-kor_end       = 55199
+kor_end       = 55203
 chosung_base  = 588
 jungsung_base = 28
 jaum_begin = 12593
