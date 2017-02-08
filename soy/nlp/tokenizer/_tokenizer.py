@@ -12,7 +12,7 @@ class LTokenizer:
         
         def token_to_lr(token):
             length = len(token)
-            if length <= 2: return token
+            if length <= 2: return (token, '')
             candidates = [(token[:e], token[e:]) for e in range(2, length + 1)]
             candidates = [(self.scores.get(t[0], self.ds), t[0], t[1]) for t in candidates]
             best = sorted(candidates, key=lambda x:(x[0], len(x[1])), reverse=True)[0]
