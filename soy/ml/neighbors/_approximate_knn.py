@@ -120,11 +120,11 @@ class FastCosine():
         for t, d_dict in t2d.items():
             self._idf[t] = np.log(self.num_doc / len(d_dict))
         
-    def rneighbors(self, query, query_range=0.2, candidate_factor=3.0, earlystop_cut=1.0, w_cut=0.5, score_as_add=True, compute_true_cosine=False):
+    def rneighbors(self, query, query_range=0.2, candidate_factor=3.0, remain_tfidf_threshold=1.0, max_weight_factor=0.5, scoring_by_adding=False, compute_true_cosine=False):
         # TODO
         raise NotImplementedError
 
-    def kneighbors(self, query, n_neighbors=10, candidate_factor=3.0, earlystop_cut=1.0, w_cut=0.5, score_as_add=True, compute_true_cosine=False):
+    def kneighbors(self, query, n_neighbors=10, candidate_factor=3.0, remain_tfidf_threshold=1.0, max_weight_factor=0.5, scoring_by_adding=False, compute_true_cosine=False):
         '''query: {term:weight, ..., }
         
         '''
@@ -134,14 +134,14 @@ class FastCosine():
         
         query = self._check_query(query)
         if not query:
-            return {}, {}
+            return [], {}
         times['check_query_type'] = self._get_process_time()
         
         query = self._order_search_term(query)
         times['order_search_term'] = self._get_process_time()
         
         n_candidates = int(n_neighbors * candidate_factor)
-        scores, info = self._retrieve_similars(query, n_candidates, earlystop_cut, w_cut, score_as_add)
+        scores, info = self._retrieve_similars(query, n_candidates, remain_tfidf_threshold, max_weight_factor, scoring_by_adding)
         scores = scores[:n_neighbors]
         times['retrieval_similars'] = self._get_process_time()
         
@@ -163,13 +163,13 @@ class FastCosine():
         query = sorted(query, key=lambda x:x[2], reverse=True)
         return query
     
-    def _retrieve_similars(self, query, n_candidates, earlystop_cut=0.5, w_cut=0.2, score_as_add=False):
+    def _retrieve_similars(self, query, n_candidates, remain_tfidf_threshold=0.5, max_weight_factor=0.2, scoring_by_adding=False):
 
-        def select_champs(champ_list, n_candidates, w_cut=0.5):
-            w_cut_threshold = (champ_list[0][0] * w_cut)
+        def select_champs(champ_list, n_candidates, max_weight_factor=0.2):
+            threshold = (champ_list[0][0] * max_weight_factor)
             sum_num = 0
             for i, (w, num, docs) in enumerate(zip(*champ_list)):
-                if (i > 0) and (w < w_cut_threshold):
+                if (i > 0) and (w < threshold):
                     break
                 sum_num += num
                 if sum_num >= n_candidates:
@@ -189,21 +189,20 @@ class FastCosine():
         for qt, qw, tfidf in query:
 
             n_considered_terms += 1
+            remain_proportion -= (qw ** 2)
             
             champ_list = self._get_champion_list(qt)
             if champ_list == None:
                 continue
 
-            champ_list = select_champs(champ_list, n_candidates, w_cut)
+            champ_list = select_champs(champ_list, n_candidates, max_weight_factor)
 
             for w, num, docs in zip(*champ_list):
                 for d in docs:
-                    scores[d] = scores.get(d, 0) + (w if score_as_add else qw * w)
+                    scores[d] = scores.get(d, 0) + (w if scoring_by_adding else qw * w)
                 n_computation += num
 
-            remain_proportion -= (qw ** 2)
-
-            if (remain_proportion * tfidf) < earlystop_cut:
+            if (remain_proportion * tfidf) < remain_tfidf_threshold:
                 break
 
         info = {
