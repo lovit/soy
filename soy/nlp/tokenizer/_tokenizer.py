@@ -1,5 +1,76 @@
 from pprint import pprint
+import re
 import numpy as np
+
+
+class RegexTokenizer:
+    
+    def __init__(self):
+        self.patterns = [
+            ('number', re.compile('[-+]?\d*[\.]?[\d]+|[-+]?\d+')),
+            ('korean', re.compile('[가-힣]+')),
+            ('jaum', re.compile('[ㄱ-ㅎ]+')), 
+            ('moum', re.compile('[ㅏ-ㅣ]+')), 
+            ('english & latin', re.compile("[a-zA-ZÀ-ÿ]+[[`']?s]*|[a-zA-ZÀ-ÿ]+"))
+        ]
+        
+        self.doublewhite_pattern = re.compile('\s+')
+    
+    def tokenize(self, s, debug=False):
+        '''
+        Usage
+        
+        s = "이거에서+3.12같은34숫자나-1.2like float해해 같은aÀÿfafAis`s-1찾아서3.1.2.1해ㅋㅋㅜㅠ봐 Bob`s job.1"
+        tokenizer = RegularTokenizer()
+        tokenizer.tokenize(s)
+
+        [['이거에서', '+3.12', '같은', '34', '숫자나', '-1.2', 'like'],
+         ['float', '해해'],
+         ['같은', 'aÀÿfafAis`s', '-1', '찾아서', '3.1', '.2', '.1', '해', 'ㅋㅋ', 'ㅜㅠ', '봐'],
+         ['Bob`s'],
+         ['job', '.1']]
+        '''
+        return [self._tokenize(t, debug) for t in s.split()]
+    
+    def _tokenize(self, s, debug=False):
+        for name, pattern in self.patterns:
+            
+            founds = pattern.findall(s)
+            if not founds: 
+                continue
+            
+            if debug:
+                print('\n%s' % name)
+                print(founds)
+            
+            found = founds.pop(0)
+            len_found = len(found)
+            
+            s_ = ''
+            b = 0
+            for i, c in enumerate(s):
+                
+                if b > i: 
+                    continue
+                    
+                if s[i:i+len_found] == found:
+                    s_ += ' %s ' % s[i:i+len_found]
+                    b = i + len_found
+                    
+                    if not founds:
+                        s_ += s[b:]
+                        break
+                    else:
+                        found = founds.pop(0)
+                        len_found = len(found)
+                    
+                    continue
+                s_ += c
+            s = s_
+            
+        s = self.doublewhite_pattern.sub(' ', s).strip().split()
+        # TODO: handle 3.1.2.1
+        return s
 
 
 class LTokenizer:
