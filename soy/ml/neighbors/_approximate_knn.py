@@ -9,8 +9,8 @@ import numpy as np
 class FastCosine():
     
     def __init__(self):
-        self.inverted = defaultdict(lambda: [])
-        self.idf = {}
+        self._inverted = defaultdict(lambda: [])
+        self._idf = {}
         self.num_doc = 0
         self.num_term = 0
 
@@ -31,10 +31,10 @@ class FastCosine():
         print('normalized t2d weight')
         
         self._build_champion_list(t2d)
-        print('champion list')
+        print('builded champion list')
         
         self._build_idf(t2d)
-        print('idf')
+        print('computed search term order (idf)')
         
         del t2d
     
@@ -114,11 +114,11 @@ class FastCosine():
                 wd[w].append(d)
                 
             wd = sorted(wd.items(), key=lambda x:x[0], reverse=True)
-            self.inverted[t] = pack(wd)
+            self._inverted[t] = pack(wd)
         
     def _build_idf(self, t2d):
         for t, d_dict in t2d.items():
-            self.idf[t] = np.log(self.num_doc / len(d_dict))
+            self._idf[t] = np.log(self.num_doc / len(d_dict))
         
     def rneighbors(self, query, query_range=0.2, candidate_factor=3.0, earlystop_cut=1.0, w_cut=0.5, score_as_add=True, compute_true_cosine=False):
         # TODO
@@ -156,10 +156,10 @@ class FastCosine():
     def _check_query(self, query):
         sum_ = sum(v ** 2 for v in query.values())
         sum_ = np.sqrt(sum_)
-        return {t:w/sum_ for t,w in query.items() if t in self.idf}
+        return {t:w/sum_ for t,w in query.items() if t in self._idf}
 
     def _order_search_term(self, query):
-        query = [(qt, qw, qw * self.idf[qt]) for qt, qw in query.items()]
+        query = [(qt, qw, qw * self._idf[qt]) for qt, qw in query.items()]
         query = sorted(query, key=lambda x:x[2], reverse=True)
         return query
     
@@ -217,7 +217,7 @@ class FastCosine():
         return sorted(scores.items(), key=lambda x:x[1], reverse=True), info
             
     def _get_champion_list(self, term):
-        return self.inverted.get(term, None)
+        return self._inverted.get(term, None)
         
     def _exact_computation(self, query, similar_idxs):
         scores = {}
@@ -244,14 +244,14 @@ class FastCosine():
     def _save_inverted_index(self, inverted_index_file):
         try:
             with open(inverted_index_file, 'wb') as f:
-                pickle.dump(dict(self.inverted), f)
+                pickle.dump(dict(self._inverted), f)
         except Exception as e:
             print(e, 'from _save_inverted_index()')
     
     def _save_idf(self, idf_file):
         try:
             with open(idf_file, 'wb') as f:
-                pickle.dump(self.idf, f)
+                pickle.dump(self._idf, f)
         except Exception as e:
             print(e, 'from _save_idf()')
     
@@ -262,13 +262,13 @@ class FastCosine():
     def _load_inverted_index(self, inverted_index_file):
         try:
             with open(inverted_index_file, 'rb') as f:
-                self.inverted = pickle.load(f)
+                self._inverted = pickle.load(f)
         except Exception as e:
             print(e, 'from _load_inverted_index()')
     
     def _load_idf(self, idf_file):
         try:
             with open(idf_file, 'rb') as f:
-                self.idf = pickle.load(f)
+                self._idf = pickle.load(f)
         except Exception as e:
             print(e, 'from _load_idf()')
