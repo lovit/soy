@@ -16,7 +16,7 @@ class RegexTokenizer:
         
         self.doublewhite_pattern = re.compile('\s+')
     
-    def tokenize(self, s, debug=False):
+    def tokenize(self, s, debug=False, flatten=True):
         '''
         Usage
         
@@ -30,7 +30,10 @@ class RegexTokenizer:
          ['Bob`s'],
          ['job', '.1']]
         '''
-        return [self._tokenize(t, debug) for t in s.split()]
+        tokens = [self._tokenize(t, debug) for t in s.split()]
+        if flatten:
+            tokens = [subtoken for token in tokens for subtoken in token if subtoken]
+        return tokens
     
     def _tokenize(self, s, debug=False):
         for name, pattern in self.patterns:
@@ -79,7 +82,7 @@ class LTokenizer:
         self.scores = scores
         self.ds = default_score
         
-    def tokenize(self, sentence, tolerance=0.0):
+    def tokenize(self, sentence, tolerance=0.0, flatten=True, remove_r=False):
         
         def token_to_lr(token, tolerance=0.0):
             length = len(token)
@@ -94,9 +97,17 @@ class LTokenizer:
                 best = sorted(candidates, key=lambda x:(x[0], len(x[1])), reverse=True)[0]
             return (best[1], best[2])
 
-        return [token_to_lr(token, tolerance) for token in sentence.split()]
+        tokens = [token_to_lr(token, tolerance) for token in sentence.split()]
+        
+        if remove_r:
+            tokens = [token[0] for token in tokens]
+        
+        if (flatten) and (remove_r == False):
+            tokens = [subtoken for token in tokens for subtoken in token if subtoken]
+        
+        return tokens
     
-    
+
 class MaxScoreTokenizer:
     
     def __init__(self, max_length=10, scores={}, default_score=0.0):
@@ -104,8 +115,11 @@ class MaxScoreTokenizer:
         self.scores = scores
         self.ds = default_score
         
-    def tokenize(self, sentence):
-        return [self._recursive_tokenize(token) for token in sentence.split()]
+    def tokenize(self, sentence, flatten=True):
+        tokens = [self._recursive_tokenize(token) for token in sentence.split()]
+        if flatten:
+            tokens = [subtoken[0] for token in tokens for subtoken in token]
+        return tokens
 
     def _recursive_tokenize(self, token, range_l=0, debug=False):
        
