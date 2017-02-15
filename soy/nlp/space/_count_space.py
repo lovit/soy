@@ -289,14 +289,28 @@ class CountSpace:
         return chars, tags
     
     
-    def correct(self, doc, verbose = False, min_count = 30, 
-                force_abs_threshold = 0.9, nonspace_threshold = -0.5, space_threshold = 0.7,
-                rules = None, debug = False):
+    def correct(self, doc, verbose = False, min_count = 10, 
+                force_abs_threshold = 0.8, nonspace_threshold = -0.3, space_threshold = 0.3,
+                space_importancy = 1, rules = None, debug = False):
         '''
+            doc: str
+                띄어쓰기를 할 문장
+            verbose: boolean
+                True 시 rule-base / force / sequential tagging 과정마다 어떤 글자가 태깅되는지 보여줌
+            min_count: int
+                Features로 이용할 (chars)의 학습데이터에서의 최소 등장 횟수
+            force_abs_threshold: float 
+                (0, 1]이며 max(abs(nonspace_threshold), abs(space_threshold)) 이어야 함
+                계산을 빠르게 하기 위하여 sequential tagging 이전에 수행되는 force tagging threshold
+            nonspace_threshold: float
+                [0, 1] 붙여쓰기의 점수 최대값
+            space_threshold: float
+                [-1, 0] 띄어쓰기의 점수 최대값
+            space_importancy: double or int
+                학습데이터의 띄어쓰기가 되어있던 경우를 over-sampling하는 배율
             rules: RuleDict
                 dict['word'] = 'tag'
                 rules = {'가감':(0,0,0), '가구':(None,0,1), '가갸':(1,0,None), ...}
-                
         '''
         chars, tags = self.space_tag(doc, nonspace=None)
         
@@ -339,6 +353,8 @@ class CountSpace:
                     for candidate_tags in self.CF.get_tags(sub_chars):
                         if self.is_matched(sub_tags, candidate_tags):
                             freq = self.CF.get_frequency(sub_chars, candidate_tags)
+                            if (space_importancy != 1) and (candidate_tags[at] == 1):
+                                freq *= space_importancy
                             features.append((candidate_tags, at, freq))
                             
             features_list[i] = features
