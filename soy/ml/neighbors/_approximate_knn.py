@@ -124,7 +124,7 @@ class FastCosine():
         # TODO
         raise NotImplementedError
 
-    def kneighbors(self, query, n_neighbors=10, candidate_factor=3.0, remain_tfidf_threshold=1.0, max_weight_factor=0.5, scoring_by_adding=False, compute_true_cosine=False):
+    def kneighbors(self, query, n_neighbors=10, candidate_factor=3.0, remain_tfidf_threshold=1.0, max_weight_factor=0.5, scoring_by_adding=False, compute_true_cosine=False, normalize_query_with_tfidf=False):
         '''query: {term:weight, ..., }
         
         '''
@@ -132,7 +132,7 @@ class FastCosine():
         times = {}
         self._get_process_time()
         
-        query = self._check_query(query)
+        query = self._check_query(query, normalize_query_with_tfidf)
         if not query:
             return [], {}
         times['check_query_type'] = self._get_process_time()
@@ -153,10 +153,14 @@ class FastCosine():
         info['time [mil.sec]'] = times
         return scores, info
     
-    def _check_query(self, query):
+    def _check_query(self, query, normalize_query_with_tfidf=False):
+        query = {t:w for t,w in query.items() if t in self._idf}
+        if normalize_query_with_tfidf:
+            query = {t:w * self._idf[t] for t,w in query.items()}
         sum_ = sum(v ** 2 for v in query.values())
         sum_ = np.sqrt(sum_)
-        return {t:w/sum_ for t,w in query.items() if t in self._idf}
+        query = {t:w/sum_ for t,w in query.items()}
+        return query
 
     def _order_search_term(self, query):
         query = [(qt, qw, qw * self._idf[qt]) for qt, qw in query.items()]
