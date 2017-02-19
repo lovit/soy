@@ -11,6 +11,7 @@ class FastCosine():
     def __init__(self):
         self._inverted = defaultdict(lambda: [])
         self._idf = {}
+        self._max_dw = {}
         self.num_doc = 0
         self.num_term = 0
 
@@ -41,6 +42,7 @@ class FastCosine():
     def _load_mm(self, mm_file):
         t2d = defaultdict(lambda: {})
         norm_d = defaultdict(lambda: 0)
+        max_dw = defaultdict(lambda: 0)
         
         if not os.path.exists(mm_file):
             raise IOError('mm file not found: %s' % mm_file)
@@ -61,6 +63,7 @@ class FastCosine():
                     
                     t2d[term][doc] = freq
                     norm_d[doc] += freq ** 2
+                    max_dw[doc] = max(max_dw[doc], freq ** 2)
                 
                     self.num_doc = max(self.num_doc, doc)
                     self.num_term = max(self.num_term, term)
@@ -73,6 +76,9 @@ class FastCosine():
         
         for d, v in norm_d.items():
             norm_d[d] = np.sqrt(v)
+            max_dw[d] = (max_dw[d] / norm_d[d]) if v != 0 else 0
+        
+        self._max_dw = dict(max_dw)
         
         return t2d, norm_d
     
@@ -120,9 +126,93 @@ class FastCosine():
         for t, d_dict in t2d.items():
             self._idf[t] = np.log(self.num_doc / len(d_dict))
         
-    def rneighbors(self, query, query_range=0.2, candidate_factor=3.0, remain_tfidf_threshold=1.0, max_weight_factor=0.5, scoring_by_adding=False, compute_true_cosine=False):
-        # TODO
-        raise NotImplementedError
+    def rneighbors(self, query, min_cosine_range=0.8, remain_tfidf_threshold=1.0, weight_factor=0.5, normalize_query_with_tfidf=False):
+        
+        times = {}
+        self._get_process_time()
+        
+        query = self._check_query(query, normalize_query_with_tfidf)
+        if not query:
+            return [], {}
+        times['check_query_type'] = self._get_process_time()
+        
+        query = self._order_search_term(query)
+        times['order_search_term'] = self._get_process_time()
+        
+        scores, info = self._retrieve_within_range(query, remain_tfidf_threshold, weight_factor)
+        
+        times['whole_querying_process'] = sum(times.values())
+        info['time [mil.sec]'] = times
+        return scores, info
+    
+    def _retrieve_within_range(self, query, remain_tfidf_threshold=1.0, weight_factor=0.5, scoring_by_adding=False):
+        
+        def select_champs(champ_list, threshold):
+            more_than_threshold = -1
+            for i, (w, num, docs) in enumerate(zip(*champ_list)):
+                if w < threshold:
+                    break
+                more_than_threshold = i
+            i = more_than_threshold
+            if i < 0:
+                return None
+            return [champ_list[0][:i+1], champ_list[1][:i+1], champ_list[2][:i+1]]
+        
+        def get_max_query_term_weight(query):
+            max_weight = [0]
+            max_ = 0
+            for qt, qw, _ in reversed(query[1:]):
+                max_ = max(max_, qw)
+                max_weight.append(max_)
+            return list(reversed(max_weight))
+
+        scores = {}
+        remain_proportion = 1
+        
+        n_computation = 0
+        n_considered_terms = 0
+        
+        max_qtws = get_max_query_term_weight(query)
+        expand_candidates = True
+
+        for (qt, qw, tfidf), max_qtw in zip(query, max_qtws):
+
+            n_considered_terms += 1
+            remain_proportion -= (qw ** 2)
+            
+            champ_list = self._get_champion_list(qt)
+            if champ_list == None:
+                continue
+
+            threshold = max(0, qw * weight_factor)
+            champ_list = select_champs(champ_list, threshold)
+            if champ_list == None:
+                continue
+
+#            print('qt = %d, qw = %.3f, t = %.3f' % (qt, qw, threshold))
+#            print(champ_list) # DEVCODE
+
+            if expand_candidates:   
+                for w, num, docs in zip(*champ_list):
+                    for d in docs:
+                        scores[d] = scores.get(d, 0) + (w if scoring_by_adding else qw * w)
+                    n_computation += num
+            else:
+                # TODO
+                pass
+
+            if (remain_proportion * tfidf) < remain_tfidf_threshold:
+                break
+
+        info = {
+            'n_computation': n_computation, 
+            'n_considered_terms': n_considered_terms, 
+            'n_terms_in_query': len(query),
+            'n_candidate': len(scores),
+            'calculated_percentage': (1 - remain_proportion)
+        }
+            
+        return sorted(scores.items(), key=lambda x:x[1], reverse=True), info
 
     def kneighbors(self, query, n_neighbors=10, candidate_factor=3.0, remain_tfidf_threshold=1.0, max_weight_factor=0.5, scoring_by_adding=False, compute_true_cosine=False, normalize_query_with_tfidf=False):
         '''query: {term:weight, ..., }
@@ -240,6 +330,7 @@ class FastCosine():
     def save(self, model_prefix):
         self._save_inverted_index('%s_inverted_index' % model_prefix)
         self._save_idf('%s_idf' % model_prefix)
+        self._save_max_dw('%s_max_dw' % model_prefix)
     
     def shape(self):
         return (self.num_doc, self.num_term)
@@ -257,10 +348,18 @@ class FastCosine():
                 pickle.dump(self._idf, f)
         except Exception as e:
             print(e, 'from _save_idf()')
+            
+    def _save_max_dw(self, max_dw_file):
+        try:
+            with open(max_dw_file, 'wb') as f:
+                pickle.dump(self._max_dw, f)
+        except Exception as e:
+            print(e, 'from _save_max_dw()')
     
     def load(self, model_prefix):
         self._load_inverted_index('%s_inverted_index' % model_prefix)
         self._load_idf('%s_idf' % model_prefix)
+        self._load_max_dw('%s_max_dw' % model_prefix)
         
     def _load_inverted_index(self, inverted_index_file):
         try:
@@ -276,6 +375,13 @@ class FastCosine():
         except Exception as e:
             print(e, 'from _load_idf()')
             
+    def _load_max_dw(self, max_dw_file):
+        try:
+            with open(max_dw_file, 'rb') as f:
+                self._max_dw = pickle.load(f)
+        except Exception as e:
+            print(e, 'from _load_max_dw()')
+
             
 class FastIntersection(FastCosine):
     
