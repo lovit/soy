@@ -275,3 +275,85 @@ class FastCosine():
                 self._idf = pickle.load(f)
         except Exception as e:
             print(e, 'from _load_idf()')
+            
+            
+class FastIntersection(FastCosine):
+    
+    def __init__(self):
+        super().__init__()
+    
+    def kneighbors(self, query, n_neighbors=10, candidate_factor=3.0, remain_tfidf_threshold=0,  normalize_query_with_tfidf=True):
+        '''query: {term:weight, ..., }
+        
+        '''
+        
+        times = {}
+        self._get_process_time()
+        
+        query = self._check_query(query, normalize_query_with_tfidf)
+        if not query:
+            return [], {}
+        times['check_query_type'] = self._get_process_time()
+        
+        query = self._order_search_term(query)
+        times['order_search_term'] = self._get_process_time()
+        
+        n_candidates = int(n_neighbors * candidate_factor)
+        scores, info = self._retrieve_similars(query, n_candidates, remain_tfidf_threshold)
+        if n_neighbors > 0:
+            scores = scores[:n_neighbors]
+        times['retrieval_similars'] = self._get_process_time()
+        times['whole_querying_process'] = sum(times.values())
+        info['time [mil.sec]'] = times
+        return scores, info
+
+    def _check_query(self, query, normalize_query_with_tfidf=False):
+        query = {t:w for t,w in query.items() if t in self._idf}
+        if normalize_query_with_tfidf:
+            query = {t:w * self._idf[t] for t,w in query.items()}
+        return query
+    
+    def _retrieve_similars(self, query, n_candidates, remain_tfidf_threshold=0):
+
+        def select_champs(champ_list, n_candidates):
+            sum_num = 0
+            for i, (w, num, docs) in enumerate(zip(*champ_list)):
+                sum_num += num
+                if (n_candidates > 0) and (sum_num >= n_candidates):
+                    break
+            return [champ_list[0][:i+1], champ_list[1][:i+1], champ_list[2][:i+1]]
+
+        scores = {}
+        remain_proportion = 1
+        
+        n_computation = 0
+        n_considered_terms = 0
+
+        for qt, qw, tfidf in query:
+
+            n_considered_terms += 1
+            remain_proportion -= (qw ** 2)
+            
+            champ_list = self._get_champion_list(qt)
+            if champ_list == None:
+                continue
+
+            champ_list = select_champs(champ_list, n_candidates)
+
+            for w, num, docs in zip(*champ_list):
+                for d in docs:
+                    scores[d] = scores.get(d, 0) + qw
+                n_computation += num
+
+            if (remain_proportion * tfidf) < remain_tfidf_threshold:
+                break
+
+        info = {
+            'n_computation': n_computation, 
+            'n_considered_terms': n_considered_terms, 
+            'n_terms_in_query': len(query),
+            'n_candidate': len(scores),
+            'calculated_percentage': (1 - remain_proportion)
+        }
+            
+        return sorted(scores.items(), key=lambda x:x[1], reverse=True), info
