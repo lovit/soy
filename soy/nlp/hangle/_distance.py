@@ -1,3 +1,5 @@
+from collections import Counter
+import numpy as np
 from ._hangle import split_jamo as _jamo
 
 def levenshtein(s1, s2, cost={}):
@@ -44,3 +46,23 @@ def jamo_levenshtein(s1, s2):
         previous_row = current_row
     
     return previous_row[-1]
+
+def cosine_distance(s1, s2, unitfy=lambda x:Counter(x)):
+    '''distance = 1 - cosine similarity; [0, 2] '''
+    if (not s1) or (not s2):
+        return 2
+    
+    d1 = unitfy(s1)
+    d2 = unitfy(s2)
+    prod = 0
+    for c1, f in d1.items():
+        prod += (f * d2.get(c1, 0))
+    return 1 - ( prod / np.sqrt( (sum([f**2 for f in d1.values()]) * sum([f**2 for f in d2.values()])) ) )
+
+def jaccard_distance(s1, s2, unitfy=lambda x:set(x)):
+    if (not s1) or (not s2):
+        return 1
+    
+    s1_set = unitfy(s1)
+    s2_set = unitfy(s2)
+    return 1 - len(s1_set.intersection(s2_set)) / len(s1_set.union(s2_set))
