@@ -388,7 +388,7 @@ class FastIntersection(FastCosine):
     def __init__(self):
         super().__init__()
     
-    def kneighbors(self, query, n_neighbors=10, candidate_factor=3.0, remain_tfidf_threshold=0,  normalize_query_with_tfidf=True):
+    def kneighbors(self, query, n_neighbors=0, candidate_factor=0, remain_tfidf_threshold=0,  normalize_query_with_tfidf=True):
         '''query: {term:weight, ..., }
         
         '''
@@ -430,6 +430,7 @@ class FastIntersection(FastCosine):
             return [champ_list[0][:i+1], champ_list[1][:i+1], champ_list[2][:i+1]]
 
         scores = {}
+        norm_of_query = np.sqrt(sum([qw ** 2 for qt, qw, _ in query]))
         remain_proportion = 1
         
         n_computation = 0
@@ -438,7 +439,7 @@ class FastIntersection(FastCosine):
         for qt, qw, tfidf in query:
 
             n_considered_terms += 1
-            remain_proportion -= (qw ** 2)
+            remain_proportion -= np.sqrt((qw ** 2) / norm_of_query)
             
             champ_list = self._get_champion_list(qt)
             if champ_list == None:
