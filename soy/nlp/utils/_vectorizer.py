@@ -4,15 +4,12 @@ from scipy.sparse import csr_matrix
 
 class Vectorizer:
     
-    def __init__(self, vocabs, weights=None, default_weight):
-        self._default_weight = default_weight
-        if type(vocabs) == str:
-            self.load(vocabs)
-        else:
-            self._vocab2int = {vocab:idx for idx, vocab in enumerate(vocabs)}
-            self._int2vocab = vocabs
-            self._weights = weights
-            self._num_vocab = len(vocabs)
+    def __init__(self, vocabs=None):
+        if vocabs == None:
+            vocabs = []
+        self._vocab2int = {vocab:idx for idx, vocab in enumerate(vocabs)}
+        self._int2vocab = vocabs
+        self._num_vocab = len(vocabs)
     
     def __len__(self):
         return self._num_vocab
@@ -20,9 +17,6 @@ class Vectorizer:
     def _encode(self, tokens):
         bow = Counter(tokens)
         bow = {self._vocab2int[v]:w for v,w in bow.items() if v in self._vocab2int}
-        if self._weights != None:
-            weighted_bow = {v:(w * self._weights.get(v, self._default_weight)) for v,w in bow.items()}
-            return weighted_bow
         return bow
     
     def encode_to_dict(self, tokens, normalize=False, norm='l2'):
@@ -78,41 +72,26 @@ class Vectorizer:
             print('\rtransforming was done. shape = (%d, %d)' % (n, self._num_vocab))
         return csr_matrix((data, (row, col)), shape=(n, self._num_vocab))
         
-    def save(self, fname, delimiter='\t'):
+    def save(self, fname):
         try:
             with open(fname, 'w', encoding='utf-8') as f:
-                if self._weights == None:
-                    self._weights = {}
-                for idx, vocab in enumerate(self._int2vocab):
-                    if idx in self._weights:
-                        f.write('%s%s%f\n' % (vocab, delimiter, self._weights[idx]))
-                    else:
-                        f.write('%s\n' % vocab)
-                if len(self._weights) == 0:
-                    self._weights = None
+                for vocab in self._int2vocab:
+                    f.write('%s\n' % vocab)
         except Exception as e:
             print(e)
         
-    def load(self, fname, delimiter='\t'):
+    def load(self, fname):
         try:
             with open(fname, encoding='utf-8') as f:
                 self._vocab2int = {}
                 self._int2vocab = []
-                self._weights = {}
                 for idx, row in enumerate(f):
-                    col = row.replace('\n','').split(delimiter)
-                    if len(col) == 1:
-                        self._vocab2int[col[0]] = len(self._vocab2int)
-                    elif len(col) == 2:
-                        self._vocab2int[col[0]] = len(self._vocab2int)
-                        self._weights[len(self._vocab2int) - 1] = float(col[1])
-                    else:
-                        raise ValueError('Vocabulary Indexer can have form <str> or <str, weight>')
-                    self._int2vocab.append(col[0])
-                if len(self._weights) == 0:
-                    self._weights = None
+                    vocab = row.replace('\n','')
+                    if not vocab:
+                        raise ValueError('Vocabulary must not be empty str')
+                    self._int2vocab.append(vocab)
+                    self._vocab2int[vocab] = idx
                 self._num_vocab = len(self._vocab2int)
-                
         except Exception as e:
             print(e)
         
