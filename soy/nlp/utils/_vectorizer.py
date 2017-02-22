@@ -4,7 +4,8 @@ from scipy.sparse import csr_matrix
 
 class Vectorizer:
     
-    def __init__(self, vocabs, weights=None):
+    def __init__(self, vocabs, weights=None, default_weight):
+        self._default_weight = default_weight
         if type(vocabs) == str:
             self.load(vocabs)
         else:
@@ -20,11 +21,11 @@ class Vectorizer:
         bow = Counter(tokens)
         bow = {self._vocab2int[v]:w for v,w in bow.items() if v in self._vocab2int}
         if self._weights != None:
-            weighted_bow = {v:(w * self._weights[v]) if v in self._weights else w for v,w in bow.items()}
+            weighted_bow = {v:(w * self._weights.get(v, self._default_weight)) for v,w in bow.items()}
             return weighted_bow
         return bow
     
-    def to_dict(self, tokens, normalize=False, norm='l2'):
+    def encode_to_dict(self, tokens, normalize=False, norm='l2'):
         bow = self._encode(tokens)
         if normalize:
             norm = np.sum(bow.values()) if norm == 'l1' else np.sqrt(sum([v**2 for v in bow.values()]))
@@ -32,7 +33,7 @@ class Vectorizer:
             return normed_bow
         return bow
     
-    def to_sparse_vector(self, tokens, normalize=False, norm='l2'):
+    def encode_to_sparse_vector(self, tokens, normalize=False, norm='l2'):
         bow = self._encode(tokens)
         row = []
         col = []
