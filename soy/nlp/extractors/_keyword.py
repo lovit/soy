@@ -60,13 +60,11 @@ class Association:
     
     def get_all_autobase_mutual_information(self, topn_for_a_from_word=10000, min_mi=0):
         MI_all = self.get_mutual_informations(None, None, topn_for_a_from_word, min_mi, base=0)
-        precomputed_MI = {}
-        for MI_w1_ in MI_all:
-            if not MI_w1_:
-                continue
-            MI_w12 = {w2:mi for w1, w2, mi in MI_w1_}
-            w1 = MI_w1_[0][0]
-            precomputed_MI[w1] = MI_w12
+        precomputed_MI = defaultdict(lambda: {})
+        for mi_w12 in MI_all:
+            w1 = mi_w12[0]
+            w2 = mi_w12[1]
+            precomputed_MI[w1][w2] = mi_w12[2]
         return precomputed_MI
     
     def get_mutual_informations(self, from_words=None, to_words=None, topn_for_a_from_word=0, min_mi=-10000, base=0):
@@ -97,10 +95,9 @@ class Association:
             to_words_of_w1 = check_to_words(to_words, w1)
             if not to_words_of_w1: continue
             if base == 0:
-                MI_w1_ = self._get_autobase_mutual_information(w1, to_words_of_w1, min_mi, topn_for_a_from_word)
+                MI_w__ += self._get_autobase_mutual_information(w1, to_words_of_w1, min_mi, topn_for_a_from_word)
             else:
-                MI_w1_ = self._get_mutual_informations(w1, to_words_of_w1, base, min_mi, topn_for_a_from_word)
-            MI_w__.append(MI_w1_)
+                MI_w__ += self._get_mutual_informations(w1, to_words_of_w1, base, min_mi, topn_for_a_from_word)
         return MI_w__
     
     def _get_autobase_mutual_information(self, a_from_word, to_words, min_mi, topn):
