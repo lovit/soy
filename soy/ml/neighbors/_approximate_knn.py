@@ -332,6 +332,9 @@ class FastCosine():
         
         return sorted(scores.items(), key=lambda x:x[1], reverse=True)
     
+    def shape(self):
+        return (self.num_doc, self.num_term)
+    
     def save(self, fname):
         if fname[-4:] != '.pkl':
             fname = fname + '.pkl'
@@ -342,66 +345,17 @@ class FastCosine():
             'num_doc': self.num_doc,
             'num_term': self.num_term
         }
-#        self._save_inverted_index('%s_inverted_index' % model_prefix)
-#        self._save_idf('%s_idf' % model_prefix)
-#        self._save_max_dw('%s_max_dw' % model_prefix)
-    
-    def shape(self):
-        return (self.num_doc, self.num_term)
-    
-#    def _save_inverted_index(self, inverted_index_file):
-#       try:
-#            with open(inverted_index_file, 'wb') as f:
-#                pickle.dump(dict(self._inverted), f)
-#        except Exception as e:
-#            print(e, 'from _save_inverted_index()')
-    
-#    def _save_idf(self, idf_file):
-#        try:
-#            with open(idf_file, 'wb') as f:
-#                pickle.dump(self._idf, f)
-#        except Exception as e:
-#            print(e, 'from _save_idf()')
-            
-#    def _save_max_dw(self, max_dw_file):
-#        try:
-#            with open(max_dw_file, 'wb') as f:
-#                pickle.dump(self._max_dw, f)
-#        except Exception as e:
-#            print(e, 'from _save_max_dw()')
+        with open(fname, 'wb') as f:
+            pickle.dump(params, f)
     
     def load(self, fname):
         with open(fname, 'rb') as f:
-            params = pickle.dump(f)
+            params = pickle.load(f)
         self._inverted = params.get('inverted_index', {})
         self._idf = params.get('idf', {})
         self._max_dw = params.get('max_dw', {})
         self.num_doc = params.get('num_doc', 0)
         self.num_term = params.get('num_term', 0)
-#        self._load_inverted_index('%s_inverted_index' % model_prefix)
-#        self._load_idf('%s_idf' % model_prefix)
-#        self._load_max_dw('%s_max_dw' % model_prefix)
-        
-#    def _load_inverted_index(self, inverted_index_file):
-#        try:
-#            with open(inverted_index_file, 'rb') as f:
-#                self._inverted = pickle.load(f)
-#        except Exception as e:
-#            print(e, 'from _load_inverted_index()')
-    
-#    def _load_idf(self, idf_file):
-#        try:
-#            with open(idf_file, 'rb') as f:
-#                self._idf = pickle.load(f)
-#        except Exception as e:
-#            print(e, 'from _load_idf()')
-            
-#    def _load_max_dw(self, max_dw_file):
-#        try:
-#            with open(max_dw_file, 'rb') as f:
-#                self._max_dw = pickle.load(f)
-#        except Exception as e:
-#            print(e, 'from _load_max_dw()')
 
             
 class FastIntersection(FastCosine):
