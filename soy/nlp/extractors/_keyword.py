@@ -7,9 +7,70 @@ import numpy as np
 
 from soy.utils import IntegerEncoder, progress
 
-class Association:
+class PrecomputedAssociation:
+    def __init__(self, scores=None):
+        self._scores = scores if (not scores is None) else {}
+
+    def save(self, fname):
+        if fname[-4:] != '.pkl':
+            fname = (fname + '.pkl')
+        with open(fname, 'wb') as f:
+            pickle.dump(self._scores, f)
+
+    def load(self, fname):
+        with open(fname, 'rb') as f:
+            self._scores = pickle.load(f)
+
+    def get_mutual_informations(self, from_words=None, to_words=None, topn_for_a_from_word=0, min_mi=0):
+        def check_from_words(args):
+            if args is None:
+                return tuple(self._scores.keys())
+            elif type(args) == int:
+                args = (args,)
+            elif (type(args) == list) or (type(args) == tuple):
+                pass
+            else:
+                raise TypeError('from_words type must be {None, int, or list/tuple of int}')
+            return [w for w in args if w in self._scores]
+
+        def check_to_words(args, w1):
+            if args is None:
+                args = tuple(self._scores.get(w1, {}).keys())
+            elif type(args) == int:
+                args = (args,)
+            elif (type(args) == list) or (type(args) == tuple):
+                pass
+            else:
+                raise TypeError('to_words type must be {None, int, or list/tuple of int}')
+            return args
+
+        from_words = check_from_words(from_words)
+        if len(from_words) == 0:
+            return []
+
+        MI_w__ = []
+        for w1 in from_words:
+            to_words_of_w1 = check_to_words(to_words, w1)
+            if not to_words_of_w1:
+                continue
+            MI_w1_ = []
+            for w2 in to_words_of_w1:
+                mi_w12 = self._scores.get(w1, {}).get(w2, None)
+                if (mi_w12 is not None) and (mi_w12 > min_mi):
+                    MI_w1_.append((w1, w2, mi_w12))
+            if not MI_w1_:
+                continue
+            if topn_for_a_from_word > 0:
+                MI_w1_ = MI_w1_[:topn_for_a_from_word]
+            MI_w__ += MI_w1_
+
+        MI_w__ = sorted(MI_w__, key=lambda x:x[2], reverse=True)
+        return MI_w__
+
     
-    def __init__(self, autobase_target=3.5, autobase_topn=20, 
+class Association:
+
+    def __init__(self, autobase_target=3.5, autobase_topn=20,
                  autobase_candidates=(1e-6, 5e-6, 1e-5, 5e-5, 1e-4, 5e-4, 1e-3, 5e-3, 1e-2)):
         self.autobase_target = autobase_target
         self.autobase_topn = autobase_topn
@@ -20,8 +81,8 @@ class Association:
         self._P_w1 = {}
         self._P_w2 = {}
         self._verbose = 10000
-        
-    def train(self, from_to_pairs):
+
+    def train(self, from_to_encoded_pairs):
         def pair_type_check(pair):
             if len(pair) != 2:
                 raise ValueError('Pair length must be two')
@@ -30,131 +91,143 @@ class Association:
                     if type(w) != int:
                         raise ValueError('Type of sent in pair must be int')
             return True
-            
+
         F_w12 = defaultdict(lambda: defaultdict(lambda: 0))
-        for num_pair, pair in enumerate(from_to_pairs):
+        for num_pair, pair in enumerate(from_to_encoded_pairs):
             pair_type_check(pair)
-            for w1 in pair[0]:
-                for w2 in pair[1]:
+            from_words, to_words = pair
+            for w1 in from_words:
+                for w2 in to_words:
                     F_w12[w1][w2] += 1
                 self._F_w1[w1] = (self._F_w1.get(w1, 0) + 1)
-            for w2 in pair[1]:
+            for w2 in to_words:
                 self._F_w2[w2] = (self._F_w2.get(w2, 0) + 1)
             if num_pair % self._verbose == 0:
-                sys.stdout.write('\rassociation training ... %d in %d' % (num_pair + 1, len(from_to_pairs)))
-            
+                sys.stdout.write('\rassociation training ... %d in %d' % (num_pair + 1, len(from_to_encoded_pairs)))
+
         for w1, F_w2 in F_w12.items():
             sum_w12 = sum(F_w2.values())
-            P_w2 = {w2:f/sum_w12 for w2, f in F_w2.items()}
+            P_w2 = {w2: f / sum_w12 for w2, f in F_w2.items()}
             self._P_w12[w1] = P_w2
-            
+
         sum_w1 = sum(self._F_w1.values())
-        for w1, f in self._F_w1.items():
-            self._P_w1[w1] = f / sum_w1
-        
+        for w1, f_w1 in self._F_w1.items():
+            self._P_w1[w1] = f_w1 / sum_w1
+
         sum_w2 = sum(self._F_w2.values())
-        for w2, f in self._F_w2.items():
-            self._P_w2[w2] = f / sum_w2
-            
+        for w2, f_w2 in self._F_w2.items():
+            self._P_w2[w2] = f_w2 / sum_w2
+
         print('\rassociation training was done')
-    
-    def get_all_autobase_mutual_information(self, topn_for_a_from_word=10000, min_mi=0):
-        MI_all = self.get_mutual_informations(None, None, topn_for_a_from_word, min_mi, base=0)
+
+    def get_all_autobase_mutual_information(self, topn_for_a_from_word=10000, min_mi=0, base=0):
+        MI_all = self.get_mutual_informations(None, None, topn_for_a_from_word, min_mi, base)
         precomputed_MI = defaultdict(lambda: {})
         for mi_w12 in MI_all:
             w1 = mi_w12[0]
             w2 = mi_w12[1]
             precomputed_MI[w1][w2] = mi_w12[2]
-        return precomputed_MI
-    
-    def get_mutual_informations(self, from_words=None, to_words=None, topn_for_a_from_word=0, min_mi=-10000, base=0):
+        return dict(precomputed_MI)
+
+    def get_mutual_informations(self, from_words=None, to_words=None, topn_for_a_from_word=0, min_mi=-10000,
+                                base=0):
         def check_from_words(args):
-            if (args is None): return tuple(self._P_w12.keys())
-            elif type(args) == int: args = (args,)
+            if (args is None):
+                return tuple(self._P_w12.keys())
+            elif type(args) == int:
+                args = (args,)
             elif (type(args) == list) or (type(args) == tuple):
-                if len(args) == 0: return tuple(self._P_w12.keys())
-                else: pass
-            else: raise TypeError('from_words type must be {None, int, or list/tuple of int}')
+                if len(args) == 0:
+                    return tuple(self._P_w12.keys())
+                else:
+                    pass
+            else:
+                raise TypeError('from_words type must be {None, int, or list/tuple of int}')
             return [w for w in args if w in self._P_w12]
-        
+
         def check_to_words(args, w1):
-            if args is None: args = []
-            elif type(args) == int: args = (args,)
-            elif (type(args) == list) or (type(args) == tuple): pass
-            else: raise TypeError('to_words type must be {None, int, or list/tuple of int}')
+            if args is None:
+                args = []
+            elif type(args) == int:
+                args = (args,)
+            elif (type(args) == list) or (type(args) == tuple):
+                pass
+            else:
+                raise TypeError('to_words type must be {None, int, or list/tuple of int}')
             if len(args) == 0:
                 args = tuple(self._P_w12.get(w1, {}).keys())
             return args
-        
+
         from_words = check_from_words(from_words)
         if len(from_words) == 0:
-            return [[]]
-        
+            return []
+
         MI_w__ = []
         for w1 in from_words:
             to_words_of_w1 = check_to_words(to_words, w1)
-            if not to_words_of_w1: continue
+            if not to_words_of_w1: 
+                continue
             if base == 0:
                 MI_w__ += self._get_autobase_mutual_information(w1, to_words_of_w1, min_mi, topn_for_a_from_word)
             else:
                 MI_w__ += self._get_mutual_informations(w1, to_words_of_w1, base, min_mi, topn_for_a_from_word)
         return MI_w__
-    
+
     def _get_autobase_mutual_information(self, a_from_word, to_words, min_mi, topn):
         MI_base = []
         for base in self.autobase_candidates:
             MI_w1_ = self._get_mutual_informations(a_from_word, to_words, base, min_mi, topn)
             if not MI_w1_:
                 continue
-            mi_avg = np.mean( [v[2] for v in MI_w1_[:self.autobase_topn] ] )
+            mi_avg = np.mean([v[2] for v in MI_w1_[:self.autobase_topn]])
             target_diff = abs(mi_avg - self.autobase_target)
             MI_base.append((target_diff, MI_w1_))
         if not MI_base:
             return []
-        return sorted(MI_base, key=lambda x:x[0])[0][1]
-    
+        return sorted(MI_base, key=lambda x: x[0])[0][1]
+
     def _get_mutual_informations(self, a_from_word, to_words, base, min_mi, topn):
         def calculate_mi(p_w12, p_w2, base):
             return np.log((p_w12 + 1e-15) / (p_w2 + base))
-        
+
         P_w12 = self._P_w12.get(a_from_word, {})
         if not P_w12:
             return []
-        
+
         MI_w1_ = []
         for w2 in to_words:
             p_w12 = P_w12.get(w2, 0)
             if p_w12 == 0:
                 continue
-            p_w2 = self._P_w2.get(w2, 0)
+            p_w2 = self._P_w2[w2]
             mi_w12 = calculate_mi(p_w12, p_w2, base)
             if mi_w12 < min_mi:
                 continue
             MI_w1_.append((a_from_word, w2, mi_w12))
-        
+
         if not MI_w1_:
             return []
         if topn > 0:
             MI_w1_ = MI_w1_[:topn]
-        return sorted(MI_w1_, key=lambda x:x[2], reverse=True)
+        return sorted(MI_w1_, key=lambda x: x[2], reverse=True)
 
     def save(self, fname):
         if fname[-4:] != '.pkl':
             fname = (fname + '.pkl')
-            
+
         with open(fname, 'wb') as f:
             params = {
                 'autobase_target': self.autobase_target,
                 'autobase_topn': self.autobase_topn,
                 'autobase_candidates': self.autobase_candidates,
-                'P_w12': self._P_w12, 
-                'P_w1': self._P_w1, 
+                'P_w12': self._P_w12,
+                'P_w1': self._P_w1,
                 'P_w2': self._P_w2,
                 'F_w1': self._F_w1,
                 'F_w2': self._F_w2
             }
             pickle.dump(params, f)
-        
+
     def load(self, fname):
         with open(fname, 'rb') as f:
             params = pickle.load(f)
@@ -166,58 +239,8 @@ class Association:
             self._P_w2 = params.get('P_w2', {})
             self._F_w1 = params.get('F_w1', {})
             self._F_w2 = params.get('F_w2', {})
-
-
-class PrecomputedAssociation:
     
-    def __init__(self, scores=None):
-        self._scores = scores if (not scores is None) else {}
-    
-    def save(self, fname):
-        if fname[-4:] != '.pkl':
-            fname = (fname + '.pkl')
-        with open(fname, 'wb') as f:
-            pickle.dump(self._scores, f)
-    
-    def load(self, fname):
-        with open(fname, 'rb') as f:
-            self._scores = pickle.load(f)
-    
-    def get_mutual_informations(self, from_words=None, to_words=None, topn_for_a_from_word=0, min_mi=0):
-        def check_from_words(args):
-            if args is None: return []
-            elif type(args) == int: args = (args,)
-            elif (type(args) == list) or (type(args) == tuple): pass
-            else: raise TypeError('from_words type must be {None, int, or list/tuple of int}')
-            return [w for w in args if w in self._scores]
-        
-        def check_to_words(args, w1):
-            if args is None: args = tuple(self._scores.get(w1, {}).keys())
-            elif type(args) == int: args = (args,)
-            elif (type(args) == list) or (type(args) == tuple): pass
-            else: raise TypeError('to_words type must be {None, int, or list/tuple of int}')
-            return args
-                
-        from_words = check_from_words(from_words)
-        if len(from_words) == 0:
-            return [[]]
-        
-        MI_w__ = []
-        for w1 in from_words:
-            to_words_of_w1 = check_to_words(to_words, w1)
-            if not to_words_of_w1:
-                continue
-            MI_w1 = []
-            for w2 in to_words_of_w1:
-                mi_w12 = self._scores.get(w1, {}).get(w2, 0)
-                if mi_w12 != 0:
-                    MI_w1.append((w1, w2, mi_w12))
-            if MI_w1:
-                MI_w__.append(MI_w1)
-        
-        return MI_w__
-    
-            
+'''
 class KeywordExtractor:
     
     def __init__(self, tokenize=lambda x:x.split()):
@@ -237,7 +260,7 @@ class KeywordExtractor:
             if normalize:
                 v = 1/len(terms)
                 terms = [(term, v) for (term, _) in terms]
-	    for (term, v) in terms:
+	        for (term, v) in terms:
                 self.doc2term[doc_id][term] += v
                 self.term2doc[term][doc_id] += v
         
@@ -363,4 +386,4 @@ class KeywordExtractor:
                     
         except Exception as e:
             print(e)
-              
+'''
