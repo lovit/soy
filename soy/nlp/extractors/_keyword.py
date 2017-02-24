@@ -58,31 +58,48 @@ class Association:
             
         print('\rassociation training was done')
     
+    def get_all_autobase_mutual_information(self, topn_for_a_from_word=10000, min_mi=0):
+        MI_all = self.get_mutual_informations(None, None, topn_for_a_from_word, min_mi, base=0)
+        precomputed_MI = {}
+        for MI_w1_ in MI_all:
+            if not MI_w1_:
+                continue
+            MI_w12 = {w2:mi for w1, w2, mi in MI_w1_}
+            w1 = MI_w1_[0][0]
+            precomputed_MI[w1] = MI_w12
+        return precomputed_MI
+    
     def get_mutual_informations(self, from_words=None, to_words=None, topn_for_a_from_word=0, min_mi=-10000, base=0):
-        def argument_type_check(args):
-            if args is None:
-                return []
-            elif type(args) == int:
-                return [args]
-            elif type(args) == list or type(args) == tuple:
-                return args
-            else:
-                raise TypeError('get mutual informations argument type must be None, int, or list/tuple of int')
-
-        from_words = argument_type_check(from_words)
+        def check_from_words(args):
+            if (args is None): return tuple(self._P_w12.keys())
+            elif type(args) == int: args = (args,)
+            elif (type(args) == list) or (type(args) == tuple):
+                if len(args) == 0: return tuple(self._P_w12.keys())
+                else: pass
+            else: raise TypeError('from_words type must be {None, int, or list/tuple of int}')
+            return [w for w in args if w in self._P_w12]
+        
+        def check_to_words(args, w1):
+            if args is None: args = []
+            elif type(args) == int: args = (args,)
+            elif (type(args) == list) or (type(args) == tuple): pass
+            else: raise TypeError('to_words type must be {None, int, or list/tuple of int}')
+            if len(args) == 0:
+                args = tuple(self._P_w12.get(w1, {}).keys())
+            return args
+        
+        from_words = check_from_words(from_words)
         if len(from_words) == 0:
-            from_words = list(self._F_w1.keys())
-
-        to_words =argument_type_check(to_words)
-        if len(to_words) == 0:
-            to_words = list(self._F_w2.keys())
+            return [[]]
         
         MI_w__ = []
         for w1 in from_words:
+            to_words_of_w1 = check_to_words(to_words, w1)
+            if not to_words_of_w1: continue
             if base == 0:
-                MI_w1_ = self._get_autobase_mutual_information(w1, to_words, min_mi, topn_for_a_from_word)
+                MI_w1_ = self._get_autobase_mutual_information(w1, to_words_of_w1, min_mi, topn_for_a_from_word)
             else:
-                MI_w1_ = self._get_mutual_informations(w1, to_words, base, min_mi, topn_for_a_from_word)
+                MI_w1_ = self._get_mutual_informations(w1, to_words_of_w1, base, min_mi, topn_for_a_from_word)
             MI_w__.append(MI_w1_)
         return MI_w__
     
@@ -95,6 +112,8 @@ class Association:
             mi_avg = np.mean( [v[2] for v in MI_w1_[:self.autobase_topn] ] )
             target_diff = abs(mi_avg - self.autobase_target)
             MI_base.append((target_diff, MI_w1_))
+        if not MI_base:
+            return []
         return sorted(MI_base, key=lambda x:x[0])[0][1]
     
     def _get_mutual_informations(self, a_from_word, to_words, base, min_mi, topn):
@@ -115,13 +134,17 @@ class Association:
             if mi_w12 < min_mi:
                 continue
             MI_w1_.append((a_from_word, w2, mi_w12))
-            
+        
+        if not MI_w1_:
+            return []
         if topn > 0:
             MI_w1_ = MI_w1_[:topn]
-        
         return sorted(MI_w1_, key=lambda x:x[2], reverse=True)
 
     def save(self, fname):
+        if fname[-4:] != '.pkl':
+            fname = (fname + '.pkl')
+            
         with open(fname, 'wb') as f:
             params = {
                 'autobase_target': self.autobase_target,
@@ -148,6 +171,56 @@ class Association:
             self._F_w2 = params.get('F_w2', {})
 
 
+class PrecomputedAssociation:
+    
+    def __init__(self, scores=None):
+        self._scores = scores if (not scores is None) else {}
+    
+    def save(self, fname):
+        if fname[-4:] != '.pkl':
+            fname = (fname + '.pkl')
+        with open(fname, 'wb') as f:
+            pickle.dump(self._scores, f)
+    
+    def load(self, fname):
+        with open(fname, 'rb') as f:
+            self._scores = pickle.load(f)
+    
+    def get_mutual_informations(self, from_words=None, to_words=None, topn_for_a_from_word=0, min_mi=0):
+        def check_from_words(args):
+            if args is None: return []
+            elif type(args) == int: args = (args,)
+            elif (type(args) == list) or (type(args) == tuple): pass
+            else: raise TypeError('from_words type must be {None, int, or list/tuple of int}')
+            return [w for w in args if w in self._scores]
+        
+        def check_to_words(args, w1):
+            if args is None: args = tuple(self._scores.get(w1, {}).keys())
+            elif type(args) == int: args = (args,)
+            elif (type(args) == list) or (type(args) == tuple): pass
+            else: raise TypeError('to_words type must be {None, int, or list/tuple of int}')
+            return args
+                
+        from_words = check_from_words(from_words)
+        if len(from_words) == 0:
+            return [[]]
+        
+        MI_w__ = []
+        for w1 in from_words:
+            to_words_of_w1 = check_to_words(to_words, w1)
+            if not to_words_of_w1:
+                continue
+            MI_w1 = []
+            for w2 in to_words_of_w1:
+                mi_w12 = self._scores.get(w1, {}).get(w2, 0)
+                if mi_w12 != 0:
+                    MI_w1.append((w1, w2, mi_w12))
+            if MI_w1:
+                MI_w__.append(MI_w1)
+        
+        return MI_w__
+    
+            
 class KeywordExtractor:
     
     def __init__(self, tokenize=lambda x:x.split()):
