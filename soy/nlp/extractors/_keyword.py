@@ -1,233 +1,151 @@
 from collections import defaultdict
 import os
+import pickle
 import sys
 import time
-
 import numpy as np
 
 from soy.utils import IntegerEncoder, progress
 
-
 class Association:
     
-    def __init__(self):
-        self.encoder = IntegerEncoder()
-        self.w1_w2 = defaultdict(lambda: defaultdict(lambda: 0))
-        self.w2_w1 = defaultdict(lambda: defaultdict(lambda: 0))
-        self.pw2 = defaultdict(lambda: 0)
+    def __init__(self, autobase_target=3.5, autobase_topn=20, 
+                 autobase_candidates=(1e-6, 5e-6, 1e-5, 5e-5, 1e-4, 5e-4, 1e-3, 5e-3, 1e-2)):
+        self.autobase_target = autobase_target
+        self.autobase_topn = autobase_topn
+        self.autobase_candidates = autobase_candidates
+        self._P_w12 = {}
+        self._F_w1 = {}
+        self._F_w2 = {}
+        self._P_w1 = {}
+        self._P_w2 = {}
+        self._verbose = 10000
         
-    def add(self, words1, words2):
-        words1 = [self.encoder.fit(w) for w in words1]
-        words2 = [self.encoder.fit(w) for w in words2]
-        
-        for w1 in words1:
-            for w2 in words2:
-                self.w1_w2[w1][w2] += 1
-                self.w2_w1[w2][w1] += 1
-    
-
-    def _to_str(self, pair):
-        return (self.encoder.decode(pair[0]), self.encoder.decode(pair[1])) + pair[2:]
-    
-    
-    
-    def conditional_probability(self, words1=[], words2=[], as_str=False):
-        
-        if words1 and type(words1[0]) == str:
-            words1 = {self.encoder.encode(w1) for w1 in words1}
-            words1 = [w1 for w1 in words1 if w1 != -1]
-        
-        if not words1:
-            return []
-        
-        if not words2:
-            words2 = {w2 for w1 in words1 for w2 in self.w1_w2[w1].keys()}
-        elif type(words2[0]) == str:
-            words2 = {self.encoder.encode(w2) for w2 in words2}
-            words2 = [w2 for w2 in words2 if w2 != -1]
-        else:
-            words2 = [w2 for w2 in words2 if w2 >= 0 and w2 < len(self.encoder.inverse)]
-        
-        cp = []
+    def train(self, from_to_pairs):
+        def pair_type_check(pair):
+            if len(pair) != 2:
+                raise ValueError('Pair length must be two')
+            for sent in pair:
+                for w in sent:
+                    if type(w) != int:
+                        raise ValueError('Type of sent in pair must be int')
+            return True
             
-        for w1 in words1:
-            w2_dict = self.w1_w2[w1]
-            w2_sum = sum([f for f in self.w1_w2[w1].values()])
+        F_w12 = defaultdict(lambda: defaultdict(lambda: 0))
+        for num_pair, pair in enumerate(from_to_pairs):
+            pair_type_check(pair)
+            for w1 in pair[0]:
+                for w2 in pair[1]:
+                    F_w12[w1][w2] += 1
+                self._F_w1[w1] = (self._F_w1.get(w1, 0) + 1)
+            for w2 in pair[1]:
+                self._F_w2[w2] = (self._F_w2.get(w2, 0) + 1)
+            if num_pair % self._verbose == 0:
+                sys.stdout.write('\rassociation training ... %d in %d' % (num_pair + 1, len(from_to_pairs)))
             
-            if w2_sum == 0:
-                continue
-                
-            for w2 in words2:
-                cp_value = w2_dict.get(w2, 0) / w2_sum
-                cp.append((w1, w2, cp_value, self.pw2[w2]))
-        
-        if as_str:
-            return [self._to_str(pair) for pair in cp]
-        else:
-            return cp
-        
-
-    def mutual_information(self, words1=[], words2=[], mutual_information_topn=0, base=0.001, autobase_target=3.5, autobase_topn=20, as_str=False):
-    
-        if len(self.pw2) == 0:
-            self._set_ready()
-    
-        if words1 and type(words1[0]) == str:
-            words1 = {self.encoder.encode(w1) for w1 in words1}
-            words1 = [w1 for w1 in words1 if w1 != -1]
-        else:
-            words1 = [w1 for w1 in words1 if w1 >= 0 and w1 < len(self.encoder.inverse)]
+        for w1, F_w2 in F_w12.items():
+            sum_w12 = sum(F_w2.values())
+            P_w2 = {w2:f/sum_w12 for w2, f in F_w2.items()}
+            self._P_w12[w1] = P_w2
             
-        if not words1:
-            return []
+        sum_w1 = sum(self._F_w1.values())
+        for w1, f in self._F_w1.items():
+            self._P_w1[w1] = f / sum_w1
         
-        if not words2:
-            words2 = list({w2 for w1 in words1 for w2 in self.w1_w2[w1].keys()})
-        elif type(words2[0]) == str: 
-            words2 = {self.encoder.encode(w2) for w2 in words2}
-            words2 = [w2 for w2 in words2 if w2 != -1]
-        else:
-            words2 = [w2 for w2 in words if w2 >= 0 and w2 < len(self.encndoer.inverse)]
-
-        mi = []
-        
-        for w1 in words1:
-            if base == 0:
-                mi.append(self._autobase_mutual_information(w1, words2, autobase_target, autobase_topn))
+        sum_w2 = sum(self._F_w2.values())
+        for w2, f in self._F_w2.items():
+            self._P_w2[w2] = f / sum_w2
+            
+        print('\rassociation training was done')
+    
+    def get_mutual_informations(self, from_words=None, to_words=None, topn_for_a_from_word=0, min_mi=-10000, base=0):
+        def argument_type_check(args):
+            if args is None:
+                return []
+            elif type(args) == int:
+                return [args]
+            elif type(args) == list or type(args) == tuple:
+                return args
             else:
-                mi.append(self._mutual_information(w1, words2, base))
+                raise TypeError('get mutual informations argument type must be None, int, or list/tuple of int')
+
+        from_words = argument_type_check(from_words)
+        if len(from_words) == 0:
+            from_words = list(self._F_w1.keys())
+
+        to_words =argument_type_check(to_words)
+        if len(to_words) == 0:
+            to_words = list(self._F_w2.keys())
+        
+        MI_w__ = []
+        for w1 in from_words:
+            if base == 0:
+                MI_w1_ = self._get_autobase_mutual_information(w1, to_words, min_mi, topn_for_a_from_word)
+            else:
+                MI_w1_ = self._get_mutual_informations(w1, to_words, base, min_mi, topn_for_a_from_word)
+            MI_w__.append(MI_w1_)
+        return MI_w__
+    
+    def _get_autobase_mutual_information(self, a_from_word, to_words, min_mi, topn):
+        MI_base = []
+        for base in self.autobase_candidates:
+            MI_w1_ = self._get_mutual_informations(a_from_word, to_words, base, min_mi, topn)
+            if not MI_w1_:
+                continue
+            mi_avg = np.mean( [v[2] for v in MI_w1_[:self.autobase_topn] ] )
+            target_diff = abs(mi_avg - self.autobase_target)
+            MI_base.append((target_diff, MI_w1_))
+        return sorted(MI_base, key=lambda x:x[0])[0][1]
+    
+    def _get_mutual_informations(self, a_from_word, to_words, base, min_mi, topn):
+        def calculate_mi(p_w12, p_w2, base):
+            return np.log((p_w12 + 1e-15) / (p_w2 + base))
+        
+        P_w12 = self._P_w12.get(a_from_word, {})
+        if not P_w12:
+            return []
+        
+        MI_w1_ = []
+        for w2 in to_words:
+            p_w12 = P_w12.get(w2, 0)
+            if p_w12 == 0:
+                continue
+            p_w2 = self._P_w2.get(w2, 0)
+            mi_w12 = calculate_mi(p_w12, p_w2, base)
+            if mi_w12 < min_mi:
+                continue
+            MI_w1_.append((a_from_word, w2, mi_w12))
             
-        if mutual_information_topn > 0:
-            mi = [mi_[:mutual_information_topn] for mi_ in mi]
-            
-        if as_str:
-            return [[self._to_str(pair) for pair in mi_] for mi_ in mi]
+        if topn > 0:
+            MI_w1_ = MI_w1_[:topn]
         
-        return mi
-    
-    
-    def _mutual_information(self, word1=None, words2=[], base=0.001):
+        return sorted(MI_w1_, key=lambda x:x[2], reverse=True)
 
-        def get_mi(prob_w2w1, prob_w2, base=0.001):
-            return np.log( (prob_w2w1 + 1e-15) / (prob_w2 + base) )
+    def save(self, fname):
+        with open(fname, 'wb') as f:
+            params = {
+                'autobase_target': self.autobase_target,
+                'autobase_topn': self.autobase_topn,
+                'autobase_candidates': self.autobase_candidates,
+                'P_w12': self._P_w12, 
+                'P_w1': self._P_w1, 
+                'P_w2': self._P_w2,
+                'F_w1': self._F_w1,
+                'F_w2': self._F_w2
+            }
+            pickle.dump(params, f)
         
-        mi = []
-        
-        w2_dict = self.w1_w2[word1]
-        w2_sum = sum([f for f in self.w1_w2[word1].values()])
-
-        if w2_sum == 0:
-            return mi
-
-        for w2 in words2:
-            pw2w1 = w2_dict.get(w2, 0)/w2_sum
-            mi_value = get_mi(pw2w1, self.pw2[w2], base)
-            mi.append((word1, w2, mi_value, self.pw2[w2], pw2w1))
-
-        return sorted(mi, key=lambda x:x[2], reverse=True)
-    
-    
-    def _autobase_mutual_information(self, word1=None, words2=[], autobase_target=3.5, autobase_topn=20):
-        
-        bases = [float('0.'+'0'*decimal+str(i)) for decimal in range(2, 7) for i in [1, 5]]
-        
-        mi_base = []
-        top_avg = []
-        
-        for base in bases:
-            
-            mi = self._mutual_information(word1, words2, base)
-            mi_base.append( ( base, mi ) )
-            top_avg.append( np.mean( [v[2] for v in mi[:autobase_topn]] ) )
-        
-        best_mi = [(base, abs(avg - autobase_target)) for base, avg in zip(bases, top_avg)]
-        best_mi = sorted(best_mi, key=lambda x:x[1])[0][0]
-        
-        for (base, mi) in mi_base:
-            if base == best_mi:
-                return mi
-    
-    
-    def _set_ready(self):
-        print('First time. Set ready!')
-        
-        for w2, w1_dict in self.w2_w1.items():
-            self.pw2[w2] = sum(w1_dict.values())
-        sum_ = sum(self.pw2.values())
-        
-        for w2 in self.w2_w1.keys():
-            self.pw2[w2] /= sum_
-        print('  - done')
-
-
-        
-    def save(self, model_prefix):
-        try:
-            folder = '/'.join(model_prefix.split('/')[:-1])
-            if not os.path.exists(folder):
-                os.makedirs(folder)
-            
-            fname = model_prefix + '_association_graph'
-            with open(fname, 'w', encoding='utf-8') as f:
-                for w1, w2_dict in self.w1_w2.items():
-                    for w2, v in w2_dict.items():
-                        f.write('%d %d %d\n' % (w1, w2, int(v)))
-                        
-            fname = model_prefix + '_association_encoder'
-            self.encoder.save(fname)
-        except Exception as e:
-            print(e)
-            print('filename = %s' % fname)
-    
-        
-    def load(self, model_prefix):
-        try:
-            fname = model_prefix + '_association_graph'
-            with open(fname, encoding='utf-8') as f:
-                
-                self.w1_w2 = defaultdict(lambda: defaultdict(lambda: 0))
-                self.w2_w1 = defaultdict(lambda: defaultdict(lambda: 0))
-                self.pw2 = defaultdict(lambda: 0)
-
-                for line in f:
-                    w1, w2, v = line.split()
-                    w1 = int(w1)
-                    w2 = int(w2)
-                    v = int(v)
-                    self.w1_w2[w1][w2] = v
-                    self.w2_w1[w2][w1] = v
-            
-            fname = model_prefix + '_association_encoder'
-            self.encoder.load(fname)
-            
-        except Exception as e:
-            print(e)
-            print('filename = %s' % fname)
-
-
-    def load_index(self, fname):
-        self.encoder.load(fname)
-        
-    
-    def load_mm(self, mm_file):
-        
-        try:
-            with open(mm_file, encoding='utf-8') as f:
-                for num, line in enumerate(f):
-                    if num < 3:
-                        continue
-                        
-                    (w1, w2, v) = [int(c) for c in line.split()]
-                    w1 -= 1
-                    w2 -= 1
-                    
-                    self.w1_w2[w1][w2] = v
-                    self.w2_w1[w2][w1] = v
-                    
-        except Exception as e:
-            print(e)
-
-
+    def load(self, fname):
+        with open(fname, 'rb') as f:
+            params = pickle.load(f)
+            self.autobase_target = params.get('autobase_target', self.autobase_target)
+            self.autobase_topn = params.get('autobase_topn', self.autobase_topn)
+            self.autobase_candidates = params.get('autobase_candidates', self.autobase_candidates)
+            self._P_w12 = params.get('P_w12', {})
+            self._P_w1 = params.get('P_w1', {})
+            self._P_w2 = params.get('P_w2', {})
+            self._F_w1 = params.get('F_w1', {})
+            self._F_w2 = params.get('F_w2', {})
 
 
 class KeywordExtractor:
@@ -267,7 +185,6 @@ class KeywordExtractor:
             self.encoder.fit(pair[0])
         print('num of terms = %d' % len(vocabs_))
         self.count = defaultdict(lambda: 0, {self.encoder.encode(term):freq for term, freq in vocabs_.items()})
-     
         
     def relative_proportion(self, base_words=[], target_words=[], min_proportion=0.7, topn=0, base_min_count=0, target_min_count=0, as_str=False, verbose=True):
 
