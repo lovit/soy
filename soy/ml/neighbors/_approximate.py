@@ -244,7 +244,7 @@ class FastCosine():
         return scores, info
     
     def _check_query(self, query, normalize_query_with_tfidf=False):
-        query = {t:w for t,w in query.items() if t in self._idf}
+        query = {t:w for t,w in query.items() if ((t in self._idf) and (0 <= t < self.num_term))}
         if normalize_query_with_tfidf:
             query = {t:w * self._idf[t] for t,w in query.items()}
         sum_ = sum(v ** 2 for v in query.values())
