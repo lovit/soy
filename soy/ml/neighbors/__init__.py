@@ -1,2 +1,3 @@
 from ._approximate import FastCosine
-from ._approximate import FastIntersection
+from ._approximate_variants import FastQueryExpansionCosine
+from ._approximate_variants import FastIntersection
