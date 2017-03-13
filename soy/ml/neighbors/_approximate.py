@@ -289,13 +289,8 @@ class FastCosine():
             if champ_list == None:
                 continue
             
-            print(qt, qw)
-            print(champ_list)
-            
             champ_list = select_champs(champ_list, n_candidates, max_weight_factor)
             
-            print(champ_list, '\n')
-
             for w, num, docs in zip(*champ_list):
                 for d in docs:
                     scores[d] = scores.get(d, 0) + (w if scoring_by_adding else qw * w)
