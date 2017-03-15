@@ -163,7 +163,7 @@ class FastQueryExpansionCosine(FastCosine):
             'num_doc': self.num_doc,
             'num_term': self.num_term,
             'num_concept': self.num_concept,
-            'term_to_concept': term_to_concept
+            'term_to_concept': self.term_to_concept
         }
         with open(fname, 'wb') as f:
             pickle.dump(params, f)
