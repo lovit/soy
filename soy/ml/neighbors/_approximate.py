@@ -49,8 +49,13 @@ class FastCosine():
         
         with open(mm_file, encoding='utf-8') as f:
             # Skip three head lines
-            for _ in range(3):
+            for _ in range(2):
                 next(f)
+            
+            nums = next(f).split()
+            nums = [int(n) for n in nums]
+            self.num_doc = nums[0]
+            self.num_term = nums[1]
             
             # line format: doc term freq
             try:
@@ -64,12 +69,6 @@ class FastCosine():
                     t2d[term][doc] = freq
                     norm_d[doc] += freq ** 2
                     max_dw[doc] = max(max_dw[doc], freq ** 2)
-                
-                    self.num_doc = max(self.num_doc, doc)
-                    self.num_term = max(self.num_term, term)
-                
-                self.num_doc += 1
-                self.num_term += 1
             except Exception as e:
                 print('mm file parsing error %s' % line)
                 print(e)
