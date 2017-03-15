@@ -333,7 +333,7 @@ class FastCosine():
             if not intersections:
                 intersections = get_all_docs(term)
                 continue
-            intersections.intersection(get_all_docs(term))
+            intersections = intersections.intersection(get_all_docs(term))
         return intersections
 
     def _exact_computation(self, query, similar_idxs):
