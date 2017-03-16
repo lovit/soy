@@ -139,6 +139,7 @@ class FastQueryExpansionCosine(FastCosine):
             
             concepts = self.term_to_concept.get(qt, {})
             if not concepts:
+                expanded_query.append((qt, qw, tfidf))
                 continue
             
             c_norm = np.sqrt(sum(v ** 2 for v in concepts.values()) / qw ** 2)
