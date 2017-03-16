@@ -124,7 +124,7 @@ class FastCosine():
     def _build_idf(self, t2d):
         for t, d_dict in t2d.items():
             self._idf[t] = np.log(self.num_doc / len(d_dict))
-      
+    
     def rneighbors(self, query, min_cosine_range=0.8, remain_tfidf_threshold=1.0, weight_factor=0.5, normalize_query_with_tfidf=False):
         raise NotImplemented
 
