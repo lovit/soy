@@ -67,7 +67,7 @@ class FastCosine():
                     freq = float(freq)
 
                     if (0 < max_num_doc) and (max_num_doc <= doc):
-                        self.num_doc = doc
+                        self.num_doc = max_num_doc
                         continue
                     
                     t2d[term][doc] = freq
