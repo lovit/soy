@@ -116,7 +116,7 @@ class FastQueryExpansionCosine(FastCosine):
         times['retrieval_similars'] = self._get_process_time()
         
         if expansion_terms:
-            exp_query_term = [t[1] for t in query]
+            exp_query_term = [t[0] for t in query]
             exp_query_term = [t if t < self.num_term else 'C%d' % (t - self.num_term) for t in exp_query_term]
             info['expanded_query_terms'] = exp_query_term
         
