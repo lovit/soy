@@ -13,9 +13,9 @@ class FastQueryExpansionCosine(FastCosine):
         self.num_concept = 0
         self.term_to_concept = {}
 
-    def indexing(self, mm_file, expansion_file):
+    def indexing(self, mm_file, expansion_file, max_num_doc=-1):
 
-        t2d, norm_dt = self._load_mm(mm_file)
+        t2d, norm_dt = self._load_mm(mm_file, max_num_doc)
         print('loaded mm')
 
         t2c = self._load_expansion_rules(expansion_file)
