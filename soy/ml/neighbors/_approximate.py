@@ -24,8 +24,8 @@ class FastCosine():
         self._base_time = time.time()
         return process_time
     
-    def indexing(self, mm_file):
-        t2d, norm_d = self._load_mm(mm_file)
+    def indexing(self, mm_file, max_num_doc=-1):
+        t2d, norm_d = self._load_mm(mm_file, max_num_doc)
         print('loaded mm')
         
         t2d = self._normalize_weight(t2d, norm_d)
@@ -39,7 +39,7 @@ class FastCosine():
         
         del t2d
     
-    def _load_mm(self, mm_file):
+    def _load_mm(self, mm_file, max_num_doc=-1):
         t2d = defaultdict(lambda: {})
         norm_d = defaultdict(lambda: 0)
         max_dw = defaultdict(lambda: 0)
@@ -65,6 +65,10 @@ class FastCosine():
                     doc = int(doc) - 1
                     term = int(term) - 1
                     freq = float(freq)
+
+                    if (0 < max_num_doc) and (max_num_doc <= doc):
+                        self.num_doc = doc
+                        continue
                     
                     t2d[term][doc] = freq
                     norm_d[doc] += freq ** 2
