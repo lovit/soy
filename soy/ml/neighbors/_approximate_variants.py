@@ -9,7 +9,7 @@ from ._approximate import FastCosine
 class FastQueryExpansionCosine(FastCosine):
 
     def __init__(self):
-        FastCosine.__init__(self)
+        super().__init__(self)
         self.num_concept = 0
         self.term_to_concept = {}
 
