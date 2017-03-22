@@ -77,9 +77,10 @@ class FastQueryExpansionCosine(FastCosine):
         return c2d, norm_dc
     
     def _merge_term_and_concept_matrix(self, t2d, c2d):
-        for c, dw in c2d.items():
-            t2d[c + self.num_term] = dict(dw)
-        return t2d
+        extended_t2d = {t:{d:w for d,w in d2w.items()} for t, d2w in t2d.items()}
+        for c, d2w in c2d.items():
+            extended_t2d[c + self.num_term] = dict(d2w)
+        return extended_t2d
     
     def rneighbors(self):
         raise NotImplemented
