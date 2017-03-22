@@ -146,6 +146,9 @@ class ConceptMapperBuilder:
             anchor_word = anchor_words[0][0]
             appended_anchors = []
             
+            if (word in knn) == False:
+                continue
+            
             for knn_word, sim in knn[word]:
                 if len(appended_anchors) >= (self.max_concept_for_a_term - 1):
                     break
