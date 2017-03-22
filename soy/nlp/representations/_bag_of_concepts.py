@@ -37,12 +37,23 @@ class ConceptMapperBuilder:
         encoded_dd = {k1:{k2:s for k2, s in d.items() if k2 != -1}  for k1, d in encoded_dd.items() if k1 != -1}
         return encoded_dd
     
-    def build_mapper(self, knn, encode_as_index=False):
-        rknn = self.reverse_knn(knn)
+    def build_mapper(self, knn, encode_as_index=False, ensure_proper_knn=False):
+        knn = self._check_knn_type(knn)
+        print('\rchecked knn graph was done')
+        
+        if not ensure_proper_knn:
+            knn = self._check_words(knn)
+            print('\rchecked words in knn graph')
+        
+        rknn = self.reverse_knn(knn)        
+        print('\rbuilding reverse knn graph was done')
+        
         mapper, anchor_to_words = self._build_initial_mapper(rknn)
+        print('initial mapper was built')
 
         if self.max_concept_for_a_term > 1:
             mapper, anchor_to_words = self._expand_representative_words(knn, mapper, anchor_to_words)
+            print('mapper was expanded for multi concepts')
         
         mapper = self._to_dictdict(mapper)
         anchor_to_words = self._to_dictdict(anchor_to_words)
@@ -50,24 +61,51 @@ class ConceptMapperBuilder:
         if encode_as_index:
             mapper = self._encode_dictdict(mapper)
             anchor_to_words = self._encode_dictdict(anchor_to_words)
+            print('words in mapper were encoded as word index')
         
         return mapper, anchor_to_words
     
+    def _check_knn_type(self, knn):
+        knn_ = {}
+        for num, (from_word, neighbors) in enumerate(knn.items()):
+            if num % 2000 == 0:
+                self._progress(num, len(knn), 'checking knn graph type')
+            if type(neighbors) == dict:
+                neighbors = list(neighbors.items())            
+            neighbors = sorted(neighbors, key=lambda x:x[1], reverse=True)
+            knn_[from_word] = neighbors
+        return knn_
+    
+    def _check_words(self, knn):
+        def is_proper_word(word):
+            if not self.vocabulary:
+                return True
+            return word in self.vocabulary
+        
+        knn_ = {}
+        for num, (from_word, neighbors) in enumerate(knn.items()):
+            if not is_proper_word(from_word):
+                continue
+            if num % 2000 == 0:
+                self._progress(num, len(knn), 'checking words in knn graph')
+            neighbors = [(word, score) for word, score in neighbors if is_proper_word(word)]
+            knn_[from_word] = neighbors
+        return knn_
+    
     def reverse_knn(self, knn):
-        '''Build reverse k-NN graph
+        '''Build reverse k nearest neighbor graph
         
         Parameters:
-        knn: dict[word][word] = similarity
+        knn: dict of list
+            knn[word] = [(word, score), (word, score), ... ]
+            the list is sorted by score with reverse order
         '''
         rknn = defaultdict(lambda: [])
         for num, (from_word, neighbors) in enumerate(knn.items()):
-            if type(neighbors) == dict:
-                neighbors = sorted(neighbors.items(), key=lambda x:x[1], reverse=True)
             for to_word, sim in neighbors:
                 rknn[to_word].append((from_word, sim))
             if num % 2000 == 0:
                 self._progress(num, len(knn), 'building reverse k-NN')
-        print('\rbuilding reverse k-NN graph was done')
         rknn = dict(rknn)
         return rknn
     
@@ -108,7 +146,6 @@ class ConceptMapperBuilder:
             anchor_word = anchor_words[0][0]
             appended_anchors = []
             
-            # TODO: knn[word] type check
             for knn_word, sim in knn[word]:
                 if len(appended_anchors) >= (self.max_concept_for_a_term - 1):
                     break
