@@ -62,7 +62,7 @@ class ConceptMapperBuilder:
         rknn = defaultdict(lambda: [])
         for num, (from_word, neighbors) in enumerate(knn.items()):
             if type(neighbors) == dict:
-                neighbors = list(neighbors.items())
+                neighbors = sorted(neighbors.items(), key=lambda x:x[1], reverse=True)
             for to_word, sim in neighbors:
                 rknn[to_word].append((from_word, sim))
             if num % 2000 == 0:
@@ -105,9 +105,10 @@ class ConceptMapperBuilder:
         mapper_ = {}
         
         for word, anchor_words in mapper.items():
-            anchor_word = anchor_to_words[0][0]
+            anchor_word = anchor_words[0][0]
             appended_anchors = []
-
+            
+            # TODO: knn[word] type check
             for knn_word, sim in knn[word]:
                 if len(appended_anchors) >= (self.max_concept_for_a_term - 1):
                     break
