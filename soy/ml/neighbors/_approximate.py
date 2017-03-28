@@ -218,7 +218,7 @@ class FastCosine():
             
 #         return sorted(scores.items(), key=lambda x:x[1], reverse=True), info
 
-    def kneighbors(self, query, n_neighbors=10, candidate_factor=10.0, remain_tfidf_threshold=1.0, max_weight_factor=0.5, scoring_by_adding=False, compute_true_cosine=True, normalize_query_with_tfidf=True, include_terms=None):
+    def kneighbors(self, query, n_neighbors=10, candidate_factor=10.0, remain_tfidf_threshold=1.0, max_weight_factor=0.5, scoring_by_adding=False, compute_true_cosine=True, normalize_query_with_tfidf=True, include_terms=None, exclude_terms=None):
         '''query: {term:weight, ..., }
         
         '''
@@ -235,7 +235,7 @@ class FastCosine():
         times['order_search_term'] = self._get_process_time()
         
         n_candidates = int(n_neighbors * candidate_factor)
-        scores, info = self._retrieve_similars(query, n_candidates, remain_tfidf_threshold, max_weight_factor, scoring_by_adding, include_terms)
+        scores, info = self._retrieve_similars(query, n_candidates, remain_tfidf_threshold, max_weight_factor, scoring_by_adding, include_terms, exclude_terms)
         scores = scores[:n_neighbors]
         times['retrieval_similars'] = self._get_process_time()
         
@@ -261,7 +261,7 @@ class FastCosine():
         query = sorted(query, key=lambda x:x[2], reverse=True)
         return query
     
-    def _retrieve_similars(self, query, n_candidates, remain_tfidf_threshold=0.5, max_weight_factor=0.2, scoring_by_adding=False, include_terms=None):
+    def _retrieve_similars(self, query, n_candidates, remain_tfidf_threshold=0.5, max_weight_factor=0.2, scoring_by_adding=False, include_terms=None, exclude_terms=None):
 
         def select_champs(champ_list, n_candidates, max_weight_factor=0.2):
             threshold = (champ_list[0][0] * max_weight_factor)
@@ -273,9 +273,13 @@ class FastCosine():
                     break
             return [champ_list[0][:i+1], champ_list[1][:i+1], champ_list[2][:i+1]]
 
-        limited_candidates = None
+        include_candidates = None
         if include_terms:
-            limited_candidates = self._get_docs_having_all_terms(include_terms)
+            include_candidates = self._get_docs_having_all_terms(include_terms)
+        
+        exclude_candidates = {}
+        if exclude_terms:
+            exclude_candidates = self._get_docs_having_at_least_one(exclude_terms)
 
         scores = {}
         remain_proportion = 1
@@ -294,15 +298,17 @@ class FastCosine():
             
             champ_list = select_champs(champ_list, n_candidates, max_weight_factor)
             
-            if limited_candidates == None:
+            if include_candidates == None:
                 for w, num, docs in zip(*champ_list):
                     for d in docs:
+                        if d in exclude_candidates:
+                            continue
                         scores[d] = scores.get(d, 0) + (w if scoring_by_adding else qw * w)
                     n_computation += num
             else:
                 for w, num, docs in zip(*champ_list):
                     for d in docs:
-                        if (d in limited_candidates) == False:
+                        if ((d in include_candidates) == False) or (d in exclude_candidates):
                             continue
                         scores[d] = scores.get(d, 0) + (w if scoring_by_adding else qw * w)
                         n_computation += num
@@ -323,22 +329,30 @@ class FastCosine():
     def _get_champion_list(self, term):
         return self._inverted.get(term, None)
 
+    def get_all_docs(self, term):
+        w, num, docs = self._inverted.get(term, (None, None, None))
+        if not docs:
+            return {}
+        return {d for doc_tuple in docs for d in doc_tuple}
+    
     def _get_docs_having_all_terms(self, terms):
-        def get_all_docs(term):
-            w, num, docs = self._inverted.get(term, (None, None, None))
-            if not docs:
-                return {}
-            return {d for doc_tuple in docs for d in doc_tuple}
-
         intersections = {}
         for term in terms:
             if (term in self._inverted) == False:
                 continue
             if not intersections:
-                intersections = get_all_docs(term)
+                intersections = self.get_all_docs(term)
                 continue
-            intersections = intersections.intersection(get_all_docs(term))
+            intersections = intersections.intersection(self.get_all_docs(term))
         return intersections
+    
+    def _get_docs_having_at_least_one(self, terms):
+        unions = set()
+        for term in terms:
+            if (term in self._inverted) == False:
+                continue
+            unions.update(self.get_all_docs(term))
+        return unions
 
     def _exact_computation(self, query, similar_idxs):
         scores = {}
