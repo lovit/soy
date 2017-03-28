@@ -218,7 +218,7 @@ class FastCosine():
             
 #         return sorted(scores.items(), key=lambda x:x[1], reverse=True), info
 
-    def kneighbors(self, query, n_neighbors=10, candidate_factor=10.0, remain_tfidf_threshold=1.0, max_weight_factor=0.5, scoring_by_adding=False, compute_true_cosine=True, normalize_query_with_tfidf=True, must_have_terms=None):
+    def kneighbors(self, query, n_neighbors=10, candidate_factor=10.0, remain_tfidf_threshold=1.0, max_weight_factor=0.5, scoring_by_adding=False, compute_true_cosine=True, normalize_query_with_tfidf=True, include_terms=None):
         '''query: {term:weight, ..., }
         
         '''
@@ -235,7 +235,7 @@ class FastCosine():
         times['order_search_term'] = self._get_process_time()
         
         n_candidates = int(n_neighbors * candidate_factor)
-        scores, info = self._retrieve_similars(query, n_candidates, remain_tfidf_threshold, max_weight_factor, scoring_by_adding, must_have_terms)
+        scores, info = self._retrieve_similars(query, n_candidates, remain_tfidf_threshold, max_weight_factor, scoring_by_adding, include_terms)
         scores = scores[:n_neighbors]
         times['retrieval_similars'] = self._get_process_time()
         
@@ -261,7 +261,7 @@ class FastCosine():
         query = sorted(query, key=lambda x:x[2], reverse=True)
         return query
     
-    def _retrieve_similars(self, query, n_candidates, remain_tfidf_threshold=0.5, max_weight_factor=0.2, scoring_by_adding=False, must_have_terms=None):
+    def _retrieve_similars(self, query, n_candidates, remain_tfidf_threshold=0.5, max_weight_factor=0.2, scoring_by_adding=False, include_terms=None):
 
         def select_champs(champ_list, n_candidates, max_weight_factor=0.2):
             threshold = (champ_list[0][0] * max_weight_factor)
@@ -274,8 +274,8 @@ class FastCosine():
             return [champ_list[0][:i+1], champ_list[1][:i+1], champ_list[2][:i+1]]
 
         limited_candidates = None
-        if must_have_terms:
-            limited_candidates = self._get_docs_having_all_terms(must_have_terms)
+        if include_terms:
+            limited_candidates = self._get_docs_having_all_terms(include_terms)
 
         scores = {}
         remain_proportion = 1

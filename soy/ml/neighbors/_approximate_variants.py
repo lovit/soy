@@ -92,7 +92,7 @@ class FastQueryExpansionCosine(FastCosine):
                    remain_tfidf_threshold=1.0, max_weight_factor=0.5, 
                    scoring_by_adding=False, compute_true_cosine=True, 
                    normalize_query_with_tfidf=True, 
-                   expansion_terms=None, must_have_terms=None):
+                   expansion_terms=None, include_terms=None):
         '''query: {term:weight, ..., }
         
         '''
@@ -109,12 +109,12 @@ class FastQueryExpansionCosine(FastCosine):
         times['order_search_term'] = self._get_process_time()
         
         if expansion_terms:
-            if must_have_terms:
-                expansion_terms = [t for t in expansion_terms if (t in must_have_terms) == False]
+            if include_terms:
+                expansion_terms = [t for t in expansion_terms if (t in include_terms) == False]
             query = self.query_expansion(query, expansion_terms)
             
         n_candidates = int(n_neighbors * candidate_factor)
-        scores, info = self._retrieve_similars(query, n_candidates, remain_tfidf_threshold, max_weight_factor, scoring_by_adding, must_have_terms)
+        scores, info = self._retrieve_similars(query, n_candidates, remain_tfidf_threshold, max_weight_factor, scoring_by_adding, include_terms)
         scores = scores[:n_neighbors]
         times['retrieval_similars'] = self._get_process_time()
         
