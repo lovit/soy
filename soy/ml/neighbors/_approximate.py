@@ -239,7 +239,7 @@ class FastCosine():
         scores = scores[:n_neighbors]
         times['retrieval_similars'] = self._get_process_time()
         
-        if compute_true_cosine:
+        if compute_true_cosine and scores:
             neighbors_idx, _ = zip(*scores)
             scores = self._exact_computation(query, neighbors_idx)
         times['true_cosine_computation'] = self._get_process_time()
