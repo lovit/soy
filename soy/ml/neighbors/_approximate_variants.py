@@ -46,7 +46,7 @@ class FastQueryExpansionCosine(FastCosine):
     def _load_expansion_rules(self, expansion_file):
         with open(expansion_file, 'rb') as f:
             t2c = pickle.load(f)
-        self.num_concept = len({c for cdict in t2c.values() for c in cdict.keys()})
+        self.num_concept = max({c for cdict in t2c.values() for c in cdict.keys()}) + 1
         return t2c
 
     def _set_term_to_concept_mapper(self, t2c):
