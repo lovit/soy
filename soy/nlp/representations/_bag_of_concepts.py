@@ -35,6 +35,7 @@ class ConceptMapperBuilder:
     def _encode_dictdict(self, dd):
         encoded_dd = {self.encode(k1):{self.encode(k2):s for k2, s in d.items()} for k1, d in dd.items()}
         encoded_dd = {k1:{k2:s for k2, s in d.items() if k2 != -1}  for k1, d in encoded_dd.items() if k1 != -1}
+        encoded_dd = {k1:d for k1, d in encoded_dd.items() if d}
         return encoded_dd
     
     def build_mapper(self, knn, encode_as_index=False, ensure_proper_knn=False):
@@ -70,6 +71,8 @@ class ConceptMapperBuilder:
         for num, (from_word, neighbors) in enumerate(knn.items()):
             if num % 2000 == 0:
                 self._progress(num, len(knn), 'checking knn graph type')
+            if not neighbors:
+                continue
             if type(neighbors) == dict:
                 neighbors = list(neighbors.items())            
             neighbors = sorted(neighbors, key=lambda x:x[1], reverse=True)
@@ -113,7 +116,7 @@ class ConceptMapperBuilder:
         for to_word, from_words in rknn.items():
             from_words = sorted(from_words, key=lambda x:x[1], reverse=True)            
             rknn[to_word] = from_words
-            
+
         return rknn
     
     def _build_initial_mapper(self, rknn):
