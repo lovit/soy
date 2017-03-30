@@ -78,9 +78,9 @@ class ConceptMapperBuilder:
     
     def _check_words(self, knn):
         def is_proper_word(word):
-            if not self.vocabulary:
+            if not self.vocab_count:
                 return True
-            return word in self.vocabulary
+            return word in self.vocab_count
         
         knn_ = {}
         for num, (from_word, neighbors) in enumerate(knn.items()):
@@ -88,7 +88,9 @@ class ConceptMapperBuilder:
                 continue
             if num % 2000 == 0:
                 self._progress(num, len(knn), 'checking words in knn graph')
-            neighbors = [(word, score) for word, score in neighbors if is_proper_word(word)]
+            neighbors = [neighbor for neighbor in neighbors if is_proper_word(neighbor[0])]
+            if not neighbors:
+                continue
             knn_[from_word] = neighbors
         return knn_
     
