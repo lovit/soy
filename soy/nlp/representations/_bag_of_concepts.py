@@ -109,6 +109,11 @@ class ConceptMapperBuilder:
             if num % 2000 == 0:
                 self._progress(num, len(knn), 'building reverse k-NN')
         rknn = dict(rknn)
+
+        for to_word, from_words in rknn.items():
+            from_words = sorted(from_words, key=lambda x:x[1], reverse=True)            
+            rknn[to_word] = from_words
+            
         return rknn
     
     def _build_initial_mapper(self, rknn):
@@ -120,7 +125,7 @@ class ConceptMapperBuilder:
         for anchor_word, from_words in sorted_rknn:
             if (anchor_word in mapper) or (len(from_words) < 1):
                 continue
-            from_words = sorted(from_words, key=lambda x:x[1], reverse=True)
+            
             covered_words = [(anchor_word, 1.0)]
             
             for from_word, sim in from_words:
