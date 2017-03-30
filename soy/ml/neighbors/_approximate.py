@@ -72,7 +72,7 @@ class FastCosine():
                     
                     t2d[term][doc] = freq
                     norm_d[doc] += freq ** 2
-                    max_dw[doc] = max(max_dw[doc], freq ** 2)
+                    max_dw[doc] = max(max_dw[doc], freq)
             except Exception as e:
                 print('mm file parsing error %s' % line)
                 print(e)
