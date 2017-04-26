@@ -21,7 +21,7 @@ class CohesionProbability:
         self.L = defaultdict(int)
         self.R = defaultdict(int)
 
-  
+
     def get_cohesion_probability(self, word):
         
         if not word:
