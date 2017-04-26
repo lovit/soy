@@ -1,6 +1,7 @@
 from collections import defaultdict
 from datetime import date, timedelta
 import time
+import psutil
 
 
 def daterange(start_date, end_date, as_str=True):
@@ -17,19 +18,24 @@ def progress(i, n, length=30, header='', base_time = None):
     message = ('\r%s: ' % header) + ('#' * perc) + ('-' * (30 - perc)) + ' (%.3f %s)' % (100 * i / n, '%')
     
     if base_time != None:
-        
         remain_time = ((time.time() - base_time) / i * (n - i + 1))
         
         if remain_time > 10000:
             message += ' remained %.3f hours' % (remain_time / 3600.0)
-            
         elif remain_time > 600:
             message += ' remained %.3f mins' % (remain_time / 60.0)
-            
         else:
             message += ' remained %.3f secs' % (remain_time)
             
     return message
+
+def get_available_memory():
+    mem = psutil.virtual_memory()
+    return 100 * mem.available / (mem.total)
+
+def get_process_memory():
+    process = psutil.Process(os.getpid())
+    return process.memory_info().rss / (1024 ** 3)
 
 
 class IntegerEncoder:
