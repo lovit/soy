@@ -122,7 +122,7 @@ class MaxScoreTokenizer:
         return tokens
 
     def _recursive_tokenize(self, token, range_l=0, debug=False):
-       
+        
         length = len(token)
         if length <= 2:
             return [(token, 0, length, self.ds, length)]
@@ -145,7 +145,7 @@ class MaxScoreTokenizer:
             adds += self._add_last_subtoken(token, result)
             
         return sorted(result + adds, key=lambda x:x[1])
- 
+
     def _initialize(self, token, range_l, length):
         scores = []
         for b in range(0, length - 1):
@@ -231,7 +231,7 @@ class CohesionTokenizer:
         return tokens
 
     def _recursive_tokenize(self, token, max_ngram=4, length_penalty=-0.05, ngram=False, debug=False):
-       
+        
         length = len(token)
         if length <= 2:
             return [token]
@@ -258,7 +258,7 @@ class CohesionTokenizer:
             result = self._extract_ngram(result, max_ngram, length_penalty)
 
         return result
- 
+
     def _initialize(self, token, range_l, length):
         scores = []
         for b in range(0, length - 1):
